@@ -23,11 +23,7 @@ export function App() {
         <ExportButton posts={filtered} />
       </header>
 
-      <SearchBar
-        query={query}
-        onQueryChange={setQuery}
-        resultCount={filtered.length}
-      />
+      <SearchBar query={query} onQueryChange={setQuery} resultCount={filtered.length} />
 
       <PostList posts={filtered} />
     </div>

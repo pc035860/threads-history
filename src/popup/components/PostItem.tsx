@@ -31,9 +31,7 @@ export function PostItem({ post }: PostItemProps) {
     >
       <div className="flex items-center justify-between mb-1">
         <span className="font-medium text-sm text-gray-900">@{post.author}</span>
-        <span className="text-xs text-gray-400">
-          {formatRelativeTime(post.seenAt)}
-        </span>
+        <span className="text-xs text-gray-400">{formatRelativeTime(post.seenAt)}</span>
       </div>
       <p className="text-sm text-gray-700 line-clamp-2 mb-2">{post.content}</p>
       <div className="flex gap-4 text-xs text-gray-500">

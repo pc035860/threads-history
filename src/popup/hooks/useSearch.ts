@@ -7,10 +7,7 @@ export function useSearch(posts: ThreadPost[]) {
   const filtered = useMemo(() => {
     if (!query.trim()) return posts;
 
-    const keywords = query
-      .toLowerCase()
-      .split(/\s+/)
-      .filter(Boolean);
+    const keywords = query.toLowerCase().split(/\s+/).filter(Boolean);
 
     return posts.filter((post) => {
       const text = `${post.author} ${post.content}`.toLowerCase();

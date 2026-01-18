@@ -16,7 +16,9 @@ function isInsideQuoteBlock(element: Element, container: Element): boolean {
     const borderLeft = parseFloat(style.borderLeftWidth) || 0;
 
     // 至少有三邊有 border 才算引用區塊
-    const sidesWithBorder = [borderTop, borderRight, borderBottom, borderLeft].filter(w => w > 0).length;
+    const sidesWithBorder = [borderTop, borderRight, borderBottom, borderLeft].filter(
+      (w) => w > 0
+    ).length;
     if (sidesWithBorder >= 3) {
       return true;
     }
@@ -73,8 +75,7 @@ function parseCount(value?: string): number {
     // 移除各種空白字元
     s = s.replace(/[\u00A0\u202F\s]+/g, "");
 
-    const escapeRegExp = (input: string): string =>
-      input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escapeRegExp = (input: string): string => input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
     // 各語言的數字單位
     const units: Array<[string, number]> = [
@@ -120,10 +121,7 @@ function parseCount(value?: string): number {
     let multiplier = 1;
 
     for (const [unit, mul] of units) {
-      const unitPattern = new RegExp(
-        `^[0-9][0-9.,]*${escapeRegExp(unit)}$`,
-        "i"
-      );
+      const unitPattern = new RegExp(`^[0-9][0-9.,]*${escapeRegExp(unit)}$`, "i");
       if (unitPattern.test(s)) {
         multiplier = mul;
         s = s.substring(0, s.length - unit.length).trim();
@@ -266,7 +264,16 @@ export function extractPostData(postLink: Element): ThreadPost | null {
     if (/^\d+\s*(萬|千|k|m)$/i.test(text)) return; // 10萬、5k
 
     // 排除 UI 文字
-    const uiTexts = ["熱門", "查看動態", "查看動態查看動態", "顯示更多", "回覆", "轉發", "引用", "分享"];
+    const uiTexts = [
+      "熱門",
+      "查看動態",
+      "查看動態查看動態",
+      "顯示更多",
+      "回覆",
+      "轉發",
+      "引用",
+      "分享",
+    ];
     if (uiTexts.includes(text)) return;
 
     // 排除重複內容
@@ -302,3 +309,13 @@ export function extractPostData(postLink: Element): ThreadPost | null {
 export function findAllPostLinks(): Element[] {
   return Array.from(document.querySelectorAll(SELECTORS.postLink));
 }
+
+// Export for testing only
+export const __testing__ = {
+  parseCount,
+  isInsideQuoteBlock,
+  getPostContainer,
+  extractPostId,
+  isTimeLink,
+  extractInteractionCounts,
+};

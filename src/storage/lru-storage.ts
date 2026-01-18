@@ -7,10 +7,7 @@ import { STORAGE_KEY, MAX_POSTS } from "../shared/constants.ts";
  * - 新貼文插入最前面
  * - 超過 MAX_POSTS 時移除最舊的
  */
-export function upsertPost(
-  posts: ThreadPost[],
-  newPost: ThreadPost
-): ThreadPost[] {
+export function upsertPost(posts: ThreadPost[], newPost: ThreadPost): ThreadPost[] {
   const filtered = posts.filter((p) => p.id !== newPost.id);
   filtered.unshift({ ...newPost, seenAt: Date.now() });
   return filtered.slice(0, MAX_POSTS);

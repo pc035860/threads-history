@@ -4,11 +4,7 @@ interface SearchBarProps {
   resultCount: number;
 }
 
-export function SearchBar({
-  query,
-  onQueryChange,
-  resultCount,
-}: SearchBarProps) {
+export function SearchBar({ query, onQueryChange, resultCount }: SearchBarProps) {
   return (
     <div className="p-3 border-b border-gray-200 bg-white sticky top-0 z-10">
       <input

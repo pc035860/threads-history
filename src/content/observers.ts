@@ -1,4 +1,5 @@
 import { SELECTORS } from "../shared/constants.ts";
+import { debug } from "../shared/debug.ts";
 import { extractPostData } from "./post-extractor.ts";
 import { savePost } from "../storage/lru-storage.ts";
 
@@ -11,13 +12,13 @@ const elementVisibility = new WeakMap<Element, boolean>();
 async function handleVisiblePost(postLink: Element): Promise<void> {
   const postData = extractPostData(postLink);
   if (!postData) {
-    console.log("[Threads Logger] Failed to extract post data from:", postLink);
+    debug.log("Failed to extract post data from:", postLink);
     return;
   }
 
   // 每次進入視窗都更新 seenAt（LRU 策略）
   await savePost(postData);
-  console.log("[Threads Logger] Saved post:", postData.id, postData.author);
+  debug.log("Saved post:", postData.id, postData.author);
 }
 
 /**
@@ -58,7 +59,7 @@ function observePostLink(postLink: Element): void {
  */
 function scanExistingPosts(): void {
   const postLinks = document.querySelectorAll(SELECTORS.postLink);
-  console.log("[Threads Logger] Found post links:", postLinks.length, "selector:", SELECTORS.postLink);
+  debug.log("Found post links:", postLinks.length, "selector:", SELECTORS.postLink);
   postLinks.forEach((link) => observePostLink(link));
 }
 
@@ -97,7 +98,7 @@ export function startObserving(): void {
     subtree: true,
   });
 
-  console.log("[Threads Logger] Started observing");
+  debug.log("Started observing");
 }
 
 /**
@@ -106,5 +107,5 @@ export function startObserving(): void {
 export function stopObserving(): void {
   mutationObserver.disconnect();
   intersectionObserver.disconnect();
-  console.log("[Threads Logger] Stopped observing");
+  debug.log("Stopped observing");
 }

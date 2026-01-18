@@ -59,12 +59,40 @@ function observePostLink(postLink: Element): void {
 }
 
 /**
+ * 檢查元素是否在視窗內
+ */
+function isElementInViewport(element: Element): boolean {
+  const rect = element.getBoundingClientRect();
+  return rect.top < window.innerHeight && rect.bottom > 0;
+}
+
+/**
  * 掃描並觀察所有現有的貼文連結
+ * 對於已在視窗內的貼文，直接同步處理（不依賴 IntersectionObserver 的異步 callback）
  */
 function scanExistingPosts(): void {
   const postLinks = document.querySelectorAll(SELECTORS.postLink);
-  debug.log("Found post links:", postLinks.length, "selector:", SELECTORS.postLink);
-  postLinks.forEach((link) => observePostLink(link));
+  debug.log("Found post links:", postLinks.length);
+
+  postLinks.forEach((link) => {
+    // 如果已經在追蹤中，跳過
+    if (elementVisibility.has(link)) return;
+
+    // 直接檢查元素是否已在視窗內
+    const isInViewport = isElementInViewport(link);
+
+    if (isInViewport) {
+      // 已在視窗內：直接處理並標記為可見
+      elementVisibility.set(link, true);
+      handleVisiblePost(link);
+    } else {
+      // 不在視窗內：標記為不可見
+      elementVisibility.set(link, false);
+    }
+
+    // 開始觀察，以偵測未來的進入/離開視窗
+    intersectionObserver.observe(link);
+  });
 }
 
 /**
@@ -98,8 +126,12 @@ export async function startObserving(): Promise<void> {
   cachedMaxPosts = settings.maxPosts;
   debug.log("Loaded settings, maxPosts:", cachedMaxPosts);
 
-  // 先掃描現有貼文
+  // 立即掃描現有貼文
   scanExistingPosts();
+
+  // 延遲掃描以捕捉 React 渲染後的貼文
+  setTimeout(() => scanExistingPosts(), 500);
+  setTimeout(() => scanExistingPosts(), 1500);
 
   // 開始監聽 DOM 變化
   mutationObserver.observe(document.body, {

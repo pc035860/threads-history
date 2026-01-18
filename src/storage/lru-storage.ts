@@ -2,6 +2,11 @@ import type { ThreadPost, StorageData } from "./types.ts";
 import { STORAGE_KEY, DEFAULT_MAX_POSTS } from "../shared/constants.ts";
 
 /**
+ * 寫入鎖：確保 savePost 操作序列化執行，避免 race condition
+ */
+let writeQueue: Promise<void> = Promise.resolve();
+
+/**
  * 將新貼文插入或更新到貼文列表（LRU 策略）
  * - 如果貼文已存在，移到最前面並更新 seenAt
  * - 新貼文插入最前面
@@ -35,13 +40,17 @@ export async function savePosts(posts: ThreadPost[]): Promise<void> {
 }
 
 /**
- * 儲存單一貼文（讀取 -> 更新 -> 寫入）
+ * 儲存單一貼文（使用寫入鎖確保序列化執行）
  */
 export async function savePost(
   post: ThreadPost,
   maxPosts: number = DEFAULT_MAX_POSTS
 ): Promise<void> {
-  const posts = await loadPosts();
-  const updated = upsertPost(posts, post, maxPosts);
-  await savePosts(updated);
+  // 將操作加入 queue，確保前一個操作完成後才執行
+  writeQueue = writeQueue.then(async () => {
+    const posts = await loadPosts();
+    const updated = upsertPost(posts, post, maxPosts);
+    await savePosts(updated);
+  });
+  await writeQueue;
 }

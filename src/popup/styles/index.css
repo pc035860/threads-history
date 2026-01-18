@@ -1,10 +1,67 @@
 @import "tailwindcss";
 
+/* ===== 像素風主題設定（簡化版） ===== */
+
+:root {
+  /* Light Mode - 提高對比度 */
+  --bg-primary: #ffffff; /* 純白背景 */
+  --bg-secondary: #ffffff; /* 卡片背景 */
+  --bg-tertiary: #f0faf8; /* 設定面板背景 - 淡薄荷 */
+
+  --text-primary: #1a3a38; /* 主要文字 - 更深的青 */
+  --text-secondary: #3d5c59; /* 次要文字 */
+  --text-muted: #6b9390; /* 淡化文字 */
+
+  --accent: #5bbfb5; /* 主色 - 薄荷綠 */
+  --accent-hover: #4ab0a5; /* 主色 hover */
+  --accent-text: #ffffff; /* 按鈕文字 */
+
+  --border: #8ecfc9; /* 像素邊框 */
+  --border-subtle: #d4ede9; /* 淺邊框 */
+
+  /* 🦶 腳印強調色 - Logo 的粉橘色 */
+  --footprint: #f5a896; /* 腳印粉橘色 */
+  --footprint-hover: #f7b8a8; /* 腳印色 hover */
+  --footprint-muted: #fcd5cb; /* 淡化腳印色 */
+
+  /* 搜尋高亮用腳印色 */
+  --highlight-bg: var(--footprint);
+  --highlight-text: #ffffff;
+}
+
 @media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark Mode - 提高對比度 */
+    --bg-primary: #1a2825; /* 深青背景 */
+    --bg-secondary: #212f2c; /* 卡片背景 - 稍淺 */
+    --bg-tertiary: #263532; /* 設定面板背景 */
+
+    --text-primary: #e8f5f3; /* 主要文字 */
+    --text-secondary: #b8d4cf; /* 次要文字 */
+    --text-muted: #7a9e98; /* 淡化文字 */
+
+    --accent: #6dd5c9; /* 主色 - 更亮的薄荷綠 */
+    --accent-hover: #85ded4; /* 主色 hover */
+    --accent-text: #1a2825; /* 按鈕文字 - 深色 */
+
+    --border: #4a9e95; /* 像素邊框 - 更明顯 */
+    --border-subtle: #3a5955; /* 淺邊框 - 更明顯 */
+
+    /* 🦶 腳印強調色 - Dark mode 稍微調亮 */
+    --footprint: #e8967f; /* 腳印粉橘色 */
+    --footprint-hover: #f0a590; /* 腳印色 hover */
+    --footprint-muted: #8b6b60; /* 淡化腳印色 */
+
+    --highlight-bg: var(--footprint);
+    --highlight-text: #ffffff;
+  }
+
   html {
     color-scheme: dark;
   }
 }
+
+/* ===== 基礎樣式 ===== */
 
 body {
   margin: 0;
@@ -22,4 +79,70 @@ body {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* ===== 像素風 CSS 類別（簡化版） ===== */
+
+/* 像素按鈕 - 保留直角和 hover 效果 */
+.pixel-btn {
+  border: 2px solid var(--border);
+  border-radius: 0;
+  background-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 500;
+  transition: all 0.1s ease;
+}
+.pixel-btn:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0 var(--footprint); /* 腳印色陰影 */
+}
+.pixel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 像素輸入框 */
+.pixel-input {
+  border: 2px solid var(--border);
+  border-radius: 0;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.pixel-input:focus {
+  outline: none;
+  border-color: var(--footprint); /* focus 時用腳印色 */
+}
+.pixel-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* 像素下拉選單 */
+.pixel-dropdown {
+  border: 2px solid var(--border);
+  border-radius: 0;
+  background-color: var(--bg-secondary);
+  box-shadow: 3px 3px 0 var(--footprint-muted); /* 腳印色陰影 */
+}
+
+/* 像素卡片 */
+.pixel-card {
+  border-bottom: 1px solid var(--border-subtle);
+}
+.pixel-card:hover {
+  background-color: var(--bg-tertiary);
+}
+
+/* 強調色 icon - 用於設定按鈕等 */
+.icon-accent {
+  color: var(--text-muted);
+  transition: color 0.15s ease;
+}
+.icon-accent:hover {
+  color: var(--footprint);
+}
+
+/* 互動數字 icon 用腳印色 */
+.stat-icon {
+  color: var(--footprint);
 }

@@ -113,22 +113,22 @@ export function ExportButton({ posts }: ExportButtonProps) {
       <button
         onClick={() => setOpen(!open)}
         disabled={posts.length === 0}
-        className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+        className="flex items-center gap-1 px-3 py-1.5 text-sm pixel-btn"
       >
         <Download size={14} />
         <span>{t("exportButton")}</span>
       </button>
       {open && (
-        <div className="absolute right-0 mt-1 w-28 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-20">
+        <div className="absolute right-0 mt-1 w-28 pixel-dropdown overflow-hidden z-20">
           <button
             onClick={exportJSON}
-            className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="w-full px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
           >
             JSON
           </button>
           <button
             onClick={exportCSV}
-            className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="w-full px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
           >
             CSV
           </button>

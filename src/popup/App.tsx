@@ -30,20 +30,20 @@ export function App() {
 
   if (loading || settingsLoading) {
     return (
-      <div className="w-[400px] h-[500px] flex items-center justify-center bg-white dark:bg-gray-900">
-        <div className="text-gray-500 dark:text-gray-400">{t("appLoading")}</div>
+      <div className="w-[400px] h-[500px] flex items-center justify-center bg-[var(--bg-primary)]">
+        <div className="text-[var(--text-muted)]">{t("appLoading")}</div>
       </div>
     );
   }
 
   return (
-    <div className="w-[400px] h-[500px] flex flex-col bg-white dark:bg-gray-900">
-      <header className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
-        <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t("appName")}</h1>
+    <div className="w-[400px] h-[500px] flex flex-col bg-[var(--bg-primary)]">
+      <header className="flex items-center justify-between p-3 border-b-2 border-[var(--border)]">
+        <img src="/icons/icon-128.png" alt={t("appName")} className="h-8" />
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+            className="p-1.5 icon-accent"
             aria-label={t("appSettings")}
           >
             <Settings size={18} />

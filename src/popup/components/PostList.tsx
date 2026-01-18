@@ -24,7 +24,7 @@ export function PostList({ posts, keywords }: PostListProps) {
 
   if (posts.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+      <div className="flex items-center justify-center h-full text-[var(--text-muted)] text-sm">
         {t("postNotFound")}
       </div>
     );

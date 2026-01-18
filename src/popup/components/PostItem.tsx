@@ -33,39 +33,32 @@ export function PostItem({ post, keywords }: PostItemProps) {
   const formatRelativeTime = useFormatRelativeTime();
 
   return (
-    <a
-      href={post.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block p-3 hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-100 dark:border-gray-800"
-    >
+    <a href={post.url} target="_blank" rel="noopener noreferrer" className="block p-3 pixel-card">
       <div className="flex items-center justify-between mb-1">
-        <span className="font-medium text-sm text-gray-900 dark:text-gray-100">@{post.author}</span>
-        <span className="text-xs text-gray-400 dark:text-gray-500">
-          {formatRelativeTime(post.seenAt)}
-        </span>
+        <span className="font-medium text-sm text-[var(--text-primary)]">@{post.author}</span>
+        <span className="text-xs text-[var(--text-muted)]">{formatRelativeTime(post.seenAt)}</span>
       </div>
-      <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+      <p className="text-sm text-[var(--text-secondary)] mb-2">
         {keywords.length > 0 ? (
           <HighlightedText content={post.content} keywords={keywords} />
         ) : (
           <span className="line-clamp-2">{post.content}</span>
         )}
       </p>
-      <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400">
+      <div className="flex gap-4 text-xs text-[var(--text-muted)]">
         {post.likes > 0 && (
           <span className="flex items-center gap-1">
-            <Heart size={12} /> {post.likes}
+            <Heart size={13} className="stat-icon" /> {post.likes}
           </span>
         )}
         {post.replies > 0 && (
           <span className="flex items-center gap-1">
-            <MessageCircle size={12} /> {post.replies}
+            <MessageCircle size={12} className="stat-icon -scale-x-100" /> {post.replies}
           </span>
         )}
         {post.reposts > 0 && (
           <span className="flex items-center gap-1">
-            <Repeat2 size={12} /> {post.reposts}
+            <Repeat2 size={15} className="stat-icon" /> {post.reposts}
           </span>
         )}
       </div>

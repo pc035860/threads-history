@@ -12,12 +12,12 @@ export function HighlightedText({ content, keywords, maxLength = 120 }: Highligh
 
   return (
     <span>
-      {snippet.hasEllipsisBefore && <span className="text-gray-400 dark:text-gray-500">...</span>}
+      {snippet.hasEllipsisBefore && <span className="text-[var(--text-muted)]">...</span>}
       {parts.map((part, index) =>
         part.isKeyword ? (
           <mark
             key={index}
-            className="bg-yellow-200 dark:bg-yellow-700 text-gray-900 dark:text-gray-100 rounded px-0.5"
+            className="bg-[var(--highlight-bg)] text-[var(--highlight-text)] px-0.5"
           >
             {part.text}
           </mark>
@@ -25,7 +25,7 @@ export function HighlightedText({ content, keywords, maxLength = 120 }: Highligh
           <span key={index}>{part.text}</span>
         )
       )}
-      {snippet.hasEllipsisAfter && <span className="text-gray-400 dark:text-gray-500">...</span>}
+      {snippet.hasEllipsisAfter && <span className="text-[var(--text-muted)]">...</span>}
     </span>
   );
 }

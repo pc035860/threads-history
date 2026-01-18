@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ThreadPost } from "../../storage/types.ts";
 import { PostItem } from "./PostItem.tsx";
+import { useI18n } from "../hooks/useI18n.ts";
 
 interface PostListProps {
   posts: ThreadPost[];
@@ -11,6 +12,7 @@ const ITEM_HEIGHT = 100; // 估計的項目高度
 
 export function PostList({ posts }: PostListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
 
   const virtualizer = useVirtualizer({
     count: posts.length,
@@ -22,7 +24,7 @@ export function PostList({ posts }: PostListProps) {
   if (posts.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-gray-500 text-sm">
-        No posts found
+        {t("postNotFound")}
       </div>
     );
   }

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Download } from "lucide-react";
 import type { ThreadPost } from "../../storage/types.ts";
+import { useI18n } from "../hooks/useI18n.ts";
 
 interface ExportButtonProps {
   posts: ThreadPost[];
@@ -72,6 +73,7 @@ function postsToCSV(posts: ThreadPost[]): string {
 export function ExportButton({ posts }: ExportButtonProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
 
   // Click outside to close
   useEffect(() => {
@@ -114,7 +116,7 @@ export function ExportButton({ posts }: ExportButtonProps) {
         className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
       >
         <Download size={14} />
-        <span>Export</span>
+        <span>{t("exportButton")}</span>
       </button>
       {open && (
         <div className="absolute right-0 mt-1 w-28 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-20">

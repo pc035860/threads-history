@@ -1,0 +1,17 @@
+{
+  "appName": { "message": "脆足跡" },
+  "appDescription": { "message": "自動記錄你在 Threads 瀏覽過的貼文" },
+  "appLoading": { "message": "載入中..." },
+  "appSettings": { "message": "設定" },
+  "searchPlaceholder": { "message": "搜尋貼文..." },
+  "searchResultCount": { "message": "$1 篇貼文" },
+  "postNotFound": { "message": "找不到貼文" },
+  "timeJustNow": { "message": "剛剛" },
+  "timeMinutesAgo": { "message": "$1 分鐘前" },
+  "timeHoursAgo": { "message": "$1 小時前" },
+  "timeDaysAgo": { "message": "$1 天前" },
+  "settingsMaxPosts": { "message": "保留貼文數量" },
+  "settingsSaving": { "message": "儲存中..." },
+  "settingsSave": { "message": "儲存" },
+  "exportButton": { "message": "匯出" }
+}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Settings } from "../../storage/settings.ts";
+import { useI18n } from "../hooks/useI18n.ts";
 
 interface SettingsPanelProps {
   settings: Settings;
@@ -9,6 +10,7 @@ interface SettingsPanelProps {
 
 export function SettingsPanel({ settings, saving, onSave }: SettingsPanelProps) {
   const [maxPosts, setMaxPosts] = useState(settings.maxPosts);
+  const { t } = useI18n();
 
   const handleSave = () => {
     onSave({ ...settings, maxPosts });
@@ -17,7 +19,7 @@ export function SettingsPanel({ settings, saving, onSave }: SettingsPanelProps) 
   return (
     <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
       <div className="flex items-center gap-3">
-        <label className="text-sm text-gray-700 dark:text-gray-300">保留貼文數量</label>
+        <label className="text-sm text-gray-700 dark:text-gray-300">{t("settingsMaxPosts")}</label>
         <input
           type="number"
           min={100}
@@ -32,7 +34,7 @@ export function SettingsPanel({ settings, saving, onSave }: SettingsPanelProps) 
           disabled={saving || maxPosts === settings.maxPosts}
           className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
         >
-          {saving ? "儲存中..." : "儲存"}
+          {saving ? t("settingsSaving") : t("settingsSave")}
         </button>
       </div>
     </div>

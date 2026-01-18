@@ -44,10 +44,7 @@ async function buildPopup() {
   }
 
   // Copy HTML
-  await copyFile(
-    "src/popup/index.html",
-    path.join(DIST_DIR, "popup", "index.html")
-  );
+  await copyFile("src/popup/index.html", path.join(DIST_DIR, "popup", "index.html"));
 }
 
 async function buildCSS() {
@@ -73,14 +70,16 @@ async function buildCSS() {
 
 async function copyPublicFiles() {
   // Copy manifest
-  await copyFile(
-    "public/manifest.json",
-    path.join(DIST_DIR, "manifest.json")
-  );
+  await copyFile("public/manifest.json", path.join(DIST_DIR, "manifest.json"));
 
   // Copy icons if they exist
   if (existsSync("public/icons")) {
     await cp("public/icons", path.join(DIST_DIR, "icons"), { recursive: true });
+  }
+
+  // Copy _locales for i18n
+  if (existsSync("public/_locales")) {
+    await cp("public/_locales", path.join(DIST_DIR, "_locales"), { recursive: true });
   }
 }
 

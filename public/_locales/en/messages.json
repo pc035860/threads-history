@@ -1,0 +1,17 @@
+{
+  "appName": { "message": "Threads History" },
+  "appDescription": { "message": "Automatically log posts you've seen on Threads" },
+  "appLoading": { "message": "Loading..." },
+  "appSettings": { "message": "Settings" },
+  "searchPlaceholder": { "message": "Search posts..." },
+  "searchResultCount": { "message": "$1 posts" },
+  "postNotFound": { "message": "No posts found" },
+  "timeJustNow": { "message": "just now" },
+  "timeMinutesAgo": { "message": "$1m ago" },
+  "timeHoursAgo": { "message": "$1h ago" },
+  "timeDaysAgo": { "message": "$1d ago" },
+  "settingsMaxPosts": { "message": "Posts retention limit" },
+  "settingsSaving": { "message": "Saving..." },
+  "settingsSave": { "message": "Save" },
+  "exportButton": { "message": "Export" }
+}

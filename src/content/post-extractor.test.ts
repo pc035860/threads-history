@@ -2,7 +2,15 @@ import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { Window } from "happy-dom";
 import { __testing__, extractPostData } from "./post-extractor.ts";
 
-const { parseCount, isInsideQuoteBlock, extractPostId, isTimeLink } = __testing__;
+const {
+  parseCount,
+  isInsideQuoteBlock,
+  extractPostId,
+  isTimeLink,
+  extractInteractionCounts,
+  hasValidContent,
+  getPostContainer,
+} = __testing__;
 
 // Type helper for happy-dom elements (not fully compatible with DOM types)
 type HappyDomElement = ReturnType<Window["document"]["getElementById"]>;
@@ -92,6 +100,20 @@ describe("parseCount", () => {
     });
   });
 
+  describe("numbers with spaces before units", () => {
+    test("parses 1.6 萬 (with space) as 16000", () => {
+      expect(parseCount("1.6 萬")).toBe(16000);
+    });
+
+    test("parses 2.5 千 (with space) as 2500", () => {
+      expect(parseCount("2.5 千")).toBe(2500);
+    });
+
+    test("parses 1.2 k (with space) as 1200", () => {
+      expect(parseCount("1.2 k")).toBe(1200);
+    });
+  });
+
   describe("edge cases", () => {
     test("returns 0 for non-numeric string", () => {
       expect(parseCount("abc")).toBe(0);
@@ -99,6 +121,14 @@ describe("parseCount", () => {
 
     test("returns 0 for NaN string", () => {
       expect(parseCount("NaN")).toBe(0);
+    });
+
+    test("handles multiple spaces", () => {
+      expect(parseCount("1.5   萬")).toBe(15000);
+    });
+
+    test("handles non-breaking space", () => {
+      expect(parseCount("1.5\u00A0萬")).toBe(15000);
     });
   });
 });
@@ -275,6 +305,276 @@ describe("isTimeLink", () => {
 
   test("returns false for long content text", () => {
     expect(isTimeLink(createLink("這是一段很長的貼文內容"))).toBe(false);
+  });
+
+  test("returns true for minutes format (32分鐘)", () => {
+    expect(isTimeLink(createLink("32分鐘"))).toBe(true);
+  });
+
+  test("returns true for weeks format (1週)", () => {
+    expect(isTimeLink(createLink("1週"))).toBe(true);
+  });
+});
+
+// =============================================================================
+// hasValidContent() Tests - 6 cases
+// =============================================================================
+describe("hasValidContent", () => {
+  let window: Window;
+  let document: Window["document"];
+
+  beforeEach(() => {
+    window = new Window();
+    document = window.document;
+    // @ts-expect-error - happy-dom mock
+    globalThis.window = window;
+  });
+
+  afterEach(() => {
+    window.close();
+    // @ts-expect-error - happy-dom cleanup
+    globalThis.window = undefined;
+  });
+
+  test("returns true when container has valid content span", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <span dir="auto">This is valid content text</span>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    expect(hasValidContent(container)).toBe(true);
+  });
+
+  test("returns false when content span is inside a link", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <a href="/user"><span dir="auto">Link text content</span></a>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    expect(hasValidContent(container)).toBe(false);
+  });
+
+  test("returns false when content is too short (<=5 chars)", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <span dir="auto">短</span>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    expect(hasValidContent(container)).toBe(false);
+  });
+
+  test("returns false when content is time format", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <span dir="auto">23小時</span>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    expect(hasValidContent(container)).toBe(false);
+  });
+
+  test("returns false when content is pure numbers", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <span dir="auto">1,234,567</span>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    expect(hasValidContent(container)).toBe(false);
+  });
+
+  test("returns false when container is empty", () => {
+    document.body.innerHTML = `<div id="container"></div>`;
+    const container = asElement(document.getElementById("container"));
+    expect(hasValidContent(container)).toBe(false);
+  });
+});
+
+// =============================================================================
+// getPostContainer() Tests - 5 cases
+// =============================================================================
+describe("getPostContainer", () => {
+  let window: Window;
+  let document: Window["document"];
+
+  beforeEach(() => {
+    window = new Window();
+    document = window.document;
+    // @ts-expect-error - happy-dom mock
+    globalThis.window = window;
+  });
+
+  afterEach(() => {
+    window.close();
+    // @ts-expect-error - happy-dom cleanup
+    globalThis.window = undefined;
+  });
+
+  test("returns container with single author", () => {
+    document.body.innerHTML = `
+      <div id="outer">
+        <div id="container">
+          <a role="link" href="/@user1">user1</a>
+          <span dir="auto">Valid content here</span>
+          <a id="post-link" role="link" href="/post/123">2天</a>
+        </div>
+      </div>
+    `;
+    const postLink = asElement(document.getElementById("post-link"));
+    const result = getPostContainer(postLink);
+    expect(result).not.toBeNull();
+    // Verify container has exactly one author link
+    const authorLinks = result!.querySelectorAll('a[role="link"][href^="/@"]');
+    expect(authorLinks.length).toBe(1);
+  });
+
+  test("returns null when no container found", () => {
+    document.body.innerHTML = `
+      <a id="post-link" role="link" href="/post/123">2天</a>
+    `;
+    const postLink = asElement(document.getElementById("post-link"));
+    expect(getPostContainer(postLink)).toBeNull();
+  });
+
+  test("uses multi-author container when single-author container has no content", () => {
+    // This simulates the single post page structure where:
+    // - The time link is in a header area with only 1 author (no content)
+    // - The actual content is in a larger container with multiple authors
+    document.body.innerHTML = `
+      <div id="multi-author-container">
+        <a role="link" href="/@user1">user1</a>
+        <a role="link" href="/@user2">user2</a>
+        <span dir="auto">This is the actual post content</span>
+        <div id="header-area">
+          <a role="link" href="/@user1">user1</a>
+          <a id="post-link" role="link" href="/post/123">2天</a>
+        </div>
+      </div>
+    `;
+    const postLink = asElement(document.getElementById("post-link"));
+    const result = getPostContainer(postLink);
+    expect(result).not.toBeNull();
+    // Multi-author container should have 2+ author links and valid content
+    const authorLinks = result!.querySelectorAll('a[role="link"][href^="/@"]');
+    expect(authorLinks.length).toBeGreaterThanOrEqual(2);
+    expect(hasValidContent(result!)).toBe(true);
+  });
+
+  test("prefers single-author container when it has valid content", () => {
+    document.body.innerHTML = `
+      <div id="multi-author-container">
+        <a role="link" href="/@user1">user1</a>
+        <a role="link" href="/@user2">user2</a>
+        <div id="single-author-container">
+          <a role="link" href="/@user1">user1</a>
+          <span dir="auto">Content in single author container</span>
+          <a id="post-link" role="link" href="/post/123">2天</a>
+        </div>
+      </div>
+    `;
+    const postLink = asElement(document.getElementById("post-link"));
+    const result = getPostContainer(postLink);
+    expect(result).not.toBeNull();
+    // Should return single-author container (1 author link)
+    const authorLinks = result!.querySelectorAll('a[role="link"][href^="/@"]');
+    expect(authorLinks.length).toBe(1);
+    expect(hasValidContent(result!)).toBe(true);
+  });
+});
+
+// =============================================================================
+// extractInteractionCounts() Tests - 6 cases
+// =============================================================================
+describe("extractInteractionCounts", () => {
+  let window: Window;
+  let document: Window["document"];
+
+  beforeEach(() => {
+    window = new Window();
+    document = window.document;
+    // @ts-expect-error - happy-dom mock
+    globalThis.window = window;
+  });
+
+  afterEach(() => {
+    window.close();
+    // @ts-expect-error - happy-dom cleanup
+    globalThis.window = undefined;
+  });
+
+  test("extracts likes count", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <div role="button">讚123</div>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    const counts = extractInteractionCounts(container);
+    expect(counts.likes).toBe(123);
+  });
+
+  test("extracts likes with Chinese unit (萬)", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <div role="button">讚1.6 萬</div>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    const counts = extractInteractionCounts(container);
+    expect(counts.likes).toBe(16000);
+  });
+
+  test("extracts replies count", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <div role="button">回覆42</div>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    const counts = extractInteractionCounts(container);
+    expect(counts.replies).toBe(42);
+  });
+
+  test("extracts reposts count", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <div role="button">轉發99</div>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    const counts = extractInteractionCounts(container);
+    expect(counts.reposts).toBe(99);
+  });
+
+  test("extracts shares count with comma", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <div role="button">分享2,713</div>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    const counts = extractInteractionCounts(container);
+    expect(counts.shares).toBe(2713);
+  });
+
+  test("extracts all interaction counts together", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <div role="button">讚1.5萬</div>
+        <div role="button">回覆100</div>
+        <div role="button">轉發50</div>
+        <div role="button">分享25</div>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    const counts = extractInteractionCounts(container);
+    expect(counts.likes).toBe(15000);
+    expect(counts.replies).toBe(100);
+    expect(counts.reposts).toBe(50);
+    expect(counts.shares).toBe(25);
   });
 });
 

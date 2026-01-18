@@ -28,12 +28,39 @@ function isInsideQuoteBlock(element: Element, container: Element): boolean {
 }
 
 /**
+ * 檢查容器內是否有有效的貼文內容
+ * 有效內容：非連結內、非時間格式、長度 > 5 的文字
+ */
+function hasValidContent(container: Element): boolean {
+  const contentSpans = container.querySelectorAll(SELECTORS.contentSpan);
+  for (const span of contentSpans) {
+    const parent = span.parentElement;
+    const grandparent = parent?.parentElement;
+    const isInLink = parent?.tagName === "A" || grandparent?.tagName === "A";
+    if (isInLink) continue;
+
+    const text = span.textContent?.trim() || "";
+    if (text.length <= 5) continue;
+    // 排除時間格式
+    if (/^\d+\s*[天時分秒週月年小hdwmy]/i.test(text)) continue;
+    // 排除純數字
+    if (/^[\d,]+$/.test(text)) continue;
+
+    return true;
+  }
+  return false;
+}
+
+/**
  * 從 post link 元素往上爬找到貼文容器
- * 策略：找到只包含 1 個作者連結的最大容器
+ * 策略：
+ * 1. 先找 authorCount=1 的最大容器
+ * 2. 如果該容器沒有有效內容，繼續往上找第一個有內容的容器
  */
 function getPostContainer(postLink: Element): Element | null {
   let current: Element | null = postLink;
   let bestContainer: Element | null = null;
+  let firstMultiAuthorWithContent: Element | null = null;
 
   for (let i = 0; i < POST_CONTAINER_DEPTH && current; i++) {
     current = current.parentElement;
@@ -46,9 +73,17 @@ function getPostContainer(postLink: Element): Element | null {
       // 只有 1 個作者，這可能是正確的貼文容器
       bestContainer = current;
     } else if (authorCount > 1) {
-      // 超過 1 個作者，已經超出單篇貼文範圍，停止
+      // 超過 1 個作者，記錄第一個有內容的容器後停止
+      if (!firstMultiAuthorWithContent && hasValidContent(current)) {
+        firstMultiAuthorWithContent = current;
+      }
       break;
     }
+  }
+
+  // 如果 bestContainer 沒有有效內容，使用 firstMultiAuthorWithContent
+  if (bestContainer && !hasValidContent(bestContainer) && firstMultiAuthorWithContent) {
+    return firstMultiAuthorWithContent;
   }
 
   return bestContainer;
@@ -273,6 +308,8 @@ export function extractPostData(postLink: Element): ThreadPost | null {
       "轉發",
       "引用",
       "分享",
+      "劇透",
+      "敏感內容",
     ];
     if (uiTexts.includes(text)) return;
 
@@ -318,4 +355,5 @@ export const __testing__ = {
   extractPostId,
   isTimeLink,
   extractInteractionCounts,
+  hasValidContent,
 };

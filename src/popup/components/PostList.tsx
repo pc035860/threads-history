@@ -6,11 +6,12 @@ import { useI18n } from "../hooks/useI18n.ts";
 
 interface PostListProps {
   posts: ThreadPost[];
+  keywords: string[];
 }
 
 const ITEM_HEIGHT = 100; // 估計的項目高度
 
-export function PostList({ posts }: PostListProps) {
+export function PostList({ posts, keywords }: PostListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const { t } = useI18n();
 
@@ -54,7 +55,7 @@ export function PostList({ posts }: PostListProps) {
               data-index={virtualItem.index}
               ref={virtualizer.measureElement}
             >
-              <PostItem post={post} />
+              <PostItem post={post} keywords={keywords} />
             </div>
           );
         })}

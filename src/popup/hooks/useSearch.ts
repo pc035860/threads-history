@@ -4,16 +4,18 @@ import type { ThreadPost } from "../../storage/types.ts";
 export function useSearch(posts: ThreadPost[]) {
   const [query, setQuery] = useState("");
 
-  const filtered = useMemo(() => {
-    if (!query.trim()) return posts;
+  const keywords = useMemo(() => {
+    return query.trim() ? query.toLowerCase().split(/\s+/).filter(Boolean) : [];
+  }, [query]);
 
-    const keywords = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const filtered = useMemo(() => {
+    if (keywords.length === 0) return posts;
 
     return posts.filter((post) => {
       const text = `${post.author} ${post.content}`.toLowerCase();
       return keywords.every((kw) => text.includes(kw));
     });
-  }, [posts, query]);
+  }, [posts, keywords]);
 
-  return { query, setQuery, filtered };
+  return { query, setQuery, filtered, keywords };
 }

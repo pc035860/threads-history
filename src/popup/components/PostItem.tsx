@@ -1,9 +1,11 @@
 import { Heart, MessageCircle, Repeat2 } from "lucide-react";
 import type { ThreadPost } from "../../storage/types.ts";
 import { useI18n } from "../hooks/useI18n.ts";
+import { HighlightedText } from "./HighlightedText.tsx";
 
 interface PostItemProps {
   post: ThreadPost;
+  keywords: string[];
 }
 
 function useFormatRelativeTime() {
@@ -27,7 +29,7 @@ function useFormatRelativeTime() {
   };
 }
 
-export function PostItem({ post }: PostItemProps) {
+export function PostItem({ post, keywords }: PostItemProps) {
   const formatRelativeTime = useFormatRelativeTime();
 
   return (
@@ -43,7 +45,13 @@ export function PostItem({ post }: PostItemProps) {
           {formatRelativeTime(post.seenAt)}
         </span>
       </div>
-      <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 mb-2">{post.content}</p>
+      <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+        {keywords.length > 0 ? (
+          <HighlightedText content={post.content} keywords={keywords} />
+        ) : (
+          <span className="line-clamp-2">{post.content}</span>
+        )}
+      </p>
       <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400">
         {post.likes > 0 && (
           <span className="flex items-center gap-1">

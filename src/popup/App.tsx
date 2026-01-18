@@ -11,7 +11,7 @@ import { SettingsPanel } from "./components/SettingsPanel.tsx";
 
 export function App() {
   const { posts, loading } = usePostStorage();
-  const { query, setQuery, filtered } = useSearch(posts);
+  const { query, setQuery, filtered, keywords } = useSearch(posts);
   const { settings, loading: settingsLoading, saving, updateSettings } = useSettings();
   const { t } = useI18n();
   const [showSettings, setShowSettings] = useState(false);
@@ -46,7 +46,7 @@ export function App() {
 
       <SearchBar query={query} onQueryChange={setQuery} resultCount={filtered.length} />
 
-      <PostList posts={filtered} />
+      <PostList posts={filtered} keywords={keywords} />
     </div>
   );
 }

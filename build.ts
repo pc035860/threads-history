@@ -72,7 +72,7 @@ async function copyPublicFiles() {
   // Copy manifest
   await copyFile("public/manifest.json", path.join(DIST_DIR, "manifest.json"));
 
-  // Copy icons if they exist
+  // Copy icons folder
   if (existsSync("public/icons")) {
     await cp("public/icons", path.join(DIST_DIR, "icons"), { recursive: true });
   }

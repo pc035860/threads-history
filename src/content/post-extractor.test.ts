@@ -576,6 +576,62 @@ describe("extractInteractionCounts", () => {
     expect(counts.reposts).toBe(50);
     expect(counts.shares).toBe(25);
   });
+
+  // English version tests
+  test("extracts English likes count", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <div role="button">Like456</div>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    const counts = extractInteractionCounts(container);
+    expect(counts.likes).toBe(456);
+  });
+
+  test("extracts English likes with K unit", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <div role="button">Like5.5K</div>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    const counts = extractInteractionCounts(container);
+    expect(counts.likes).toBe(5500);
+  });
+
+  test("extracts English Reply count", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <div role="button">Reply214</div>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    const counts = extractInteractionCounts(container);
+    expect(counts.replies).toBe(214);
+  });
+
+  test("extracts English Repost count", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <div role="button">Repost15</div>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    const counts = extractInteractionCounts(container);
+    expect(counts.reposts).toBe(15);
+  });
+
+  test("extracts English Share count", () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <div role="button">Share98</div>
+      </div>
+    `;
+    const container = asElement(document.getElementById("container"));
+    const counts = extractInteractionCounts(container);
+    expect(counts.shares).toBe(98);
+  });
 });
 
 // =============================================================================
@@ -752,6 +808,40 @@ describe("extractPostData", () => {
     expect(result!.replies).toBe(0);
     expect(result!.reposts).toBe(0);
     expect(result!.shares).toBe(0);
+  });
+
+  test("removes trailing Translate from content", () => {
+    const link = createPostDOM({ content: "Hello world  Translate" });
+    const result = extractPostData(link);
+
+    expect(result).not.toBeNull();
+    expect(result!.content).toBe("Hello world");
+    expect(result!.content).not.toContain("Translate");
+  });
+
+  test("removes trailing 1/2 pagination from content", () => {
+    const link = createPostDOM({ content: "Hello world 1/2" });
+    const result = extractPostData(link);
+
+    expect(result).not.toBeNull();
+    expect(result!.content).toBe("Hello world");
+    expect(result!.content).not.toContain("1/2");
+  });
+
+  test("removes both Translate and pagination from content", () => {
+    const link = createPostDOM({ content: "Hello world  Translate 1/2" });
+    const result = extractPostData(link);
+
+    expect(result).not.toBeNull();
+    expect(result!.content).toBe("Hello world");
+  });
+
+  test("works with English time format", () => {
+    const link = createPostDOM({ timeText: "2h", content: "English post" });
+    const result = extractPostData(link);
+
+    expect(result).not.toBeNull();
+    expect(result!.content).toBe("English post");
   });
 
   test("returns null when content is empty", () => {

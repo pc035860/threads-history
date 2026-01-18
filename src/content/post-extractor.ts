@@ -296,10 +296,11 @@ export function extractPostData(postLink: Element): ThreadPost | null {
     if (/^[\d,]+$/.test(text)) return; // 123 或 4,159
     if (/^\d+\s*[天時分秒週月年小]/.test(text)) return; // 2天、23小時
     if (/^\d+\s*[hdwmy]/i.test(text)) return; // 2h, 3d, 1w
-    if (/^\d+\s*(萬|千|k|m)$/i.test(text)) return; // 10萬、5k
+    if (/^[\d,.]+\s*[萬万千億kmb]$/i.test(text)) return; // 10萬、5k、5.5K、1.2M
 
-    // 排除 UI 文字
+    // 排除 UI 文字（中英文）
     const uiTexts = [
+      // 中文
       "熱門",
       "查看動態",
       "查看動態查看動態",
@@ -310,14 +311,34 @@ export function extractPostData(postLink: Element): ThreadPost | null {
       "分享",
       "劇透",
       "敏感內容",
+      // English
+      "Trending",
+      "View activity",
+      "Show more",
+      "Reply",
+      "Repost",
+      "Quote",
+      "Share",
+      "Spoiler",
+      "Sensitive content",
+      "Translate",
     ];
     if (uiTexts.includes(text)) return;
 
     // 排除重複內容
     if (seenTexts.has(text)) return;
 
+    // 清理尾部的 UI 文字（Translate, 1/2 等）
+    // 順序：先移除分頁標記，再移除翻譯按鈕
+    const cleanedText = text
+      .replace(/\s+\d+\/\d+\s*$/, "")
+      .replace(/\s+(Translate|翻譯)\s*$/, "")
+      .trim();
+
+    if (!cleanedText) return;
+
     seenTexts.add(text);
-    contentParts.push(text);
+    contentParts.push(cleanedText);
   });
 
   const content = contentParts.join("\n\n");

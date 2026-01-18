@@ -1,111 +1,50 @@
----
-description: Use Bun instead of Node.js, npm, pnpm, or vite.
-globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
-alwaysApply: false
----
+# CLAUDE.md
 
-Default to using Bun instead of Node.js.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
-- Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
-- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
-- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
-- Bun automatically loads .env, so don't use dotenv.
+## Project Overview
 
-## APIs
+Threads Logger 是一個 Chrome Extension (Manifest V3)，自動記錄使用者在 Threads.com 瀏覽過的貼文。
 
-- `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
-- `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
-- `Bun.redis` for Redis. Don't use `ioredis`.
-- `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
-- `WebSocket` is built-in. Don't use `ws`.
-- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
-- Bun.$`ls` instead of execa.
+## Build Commands
 
-## Testing
-
-Use `bun test` to run tests.
-
-```ts#index.test.ts
-import { test, expect } from "bun:test";
-
-test("hello world", () => {
-  expect(1).toBe(1);
-});
+```bash
+bun install          # 安裝依賴
+bun run build        # 建置到 dist/（需載入 chrome://extensions）
+bun run dev          # 同 build，附帶提示訊息
+bun test             # 執行測試（使用 bun:test）
 ```
 
-## Frontend
+## Architecture
 
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
-
-Server:
-
-```ts#index.ts
-import index from "./index.html"
-
-Bun.serve({
-  routes: {
-    "/": index,
-    "/api/users/:id": {
-      GET: (req) => {
-        return new Response(JSON.stringify({ id: req.params.id }));
-      },
-    },
-  },
-  // optional websocket support
-  websocket: {
-    open: (ws) => {
-      ws.send("Hello, world!");
-    },
-    message: (ws, message) => {
-      ws.send(message);
-    },
-    close: (ws) => {
-      // handle close
-    }
-  },
-  development: {
-    hmr: true,
-    console: true,
-  }
-})
+```
+Content Script (threads.com)     Popup UI (React)
+         ↓                              ↓
+   post-extractor.ts              usePostStorage.ts
+         ↓                              ↓
+     observers.ts                  useSearch.ts
+         ↓                              ↓
+         └──── chrome.storage.local ────┘
+                    (LRU, 1000 posts max)
 ```
 
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
+### Content Script (`src/content/`)
+- **observers.ts**: MutationObserver 監聽 DOM 變化 + IntersectionObserver 偵測貼文進入視窗
+- **post-extractor.ts**: 從 DOM 提取貼文資料（作者、內容、互動數），需處理引用區塊排除邏輯
 
-```html#index.html
-<html>
-  <body>
-    <h1>Hello, world!</h1>
-    <script type="module" src="./frontend.tsx"></script>
-  </body>
-</html>
-```
+### Storage (`src/storage/`)
+- **lru-storage.ts**: LRU 策略，重複瀏覽的貼文會更新 seenAt 並移到最前面
+- 使用 `chrome.storage.local`，key: `threads_posts`
 
-With the following `frontend.tsx`:
+### Popup UI (`src/popup/`)
+- React 19 + Tailwind CSS 4 + @tanstack/react-virtual（虛擬滾動）
+- Hooks: `usePostStorage`（讀取/清除貼文）、`useSearch`（即時搜尋）
 
-```tsx#frontend.tsx
-import React from "react";
+### Shared (`src/shared/constants.ts`)
+- DOM selectors、MAX_POSTS 上限等常數
 
-// import .css files directly and it works
-import './index.css';
+## Development Notes
 
-import { createRoot } from "react-dom/client";
-
-const root = createRoot(document.body);
-
-export default function Frontend() {
-  return <h1>Hello, world!</h1>;
-}
-
-root.render(<Frontend />);
-```
-
-Then, run index.ts
-
-```sh
-bun --hot ./index.ts
-```
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.md`.
+- 使用 Bun 作為 runtime 和 bundler（不使用 Vite/Webpack）
+- build.ts 處理：TypeScript 編譯、Tailwind CSS 處理、複製 manifest 和 icons
+- 沒有 HMR，修改後需重新 build 並在 Chrome 重新載入 extension

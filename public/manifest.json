@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Threads Logger",
+  "version": "1.0.0",
+  "description": "Automatically log posts you've seen on Threads",
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.threads.com/*"],
+  "action": {
+    "default_popup": "popup/index.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.threads.com/*"],
+      "js": ["content/index.js"]
+    }
+  ]
+}

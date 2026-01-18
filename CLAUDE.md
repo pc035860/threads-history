@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Threads Logger（脆足跡）是一個 Chrome Extension (Manifest V3)，自動記錄使用者在 Threads.com 瀏覽過的貼文。支援 i18n（英文/繁體中文）、深色模式、資料匯出等功能。
 
+**目標網站**: https://www.threads.com
+
 ## Build Commands
 
 ```bash

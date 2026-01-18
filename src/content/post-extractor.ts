@@ -62,24 +62,98 @@ function extractPostId(url: string): string | null {
 }
 
 /**
- * 解析數字（處理 K, M 等縮寫）
+ * 解析格式化數字（支援多語言單位、逗號、小數點等）
  */
-function parseCount(text: string): number {
-  const cleaned = text.trim().toLowerCase();
-  if (!cleaned) return 0;
+function parseCount(value?: string): number {
+  try {
+    if (!value) return 0;
+    let s = String(value).trim();
+    if (!s) return 0;
 
-  const match = cleaned.match(/^([\d.]+)([km]?)$/);
-  if (!match) return 0;
+    // 移除各種空白字元
+    s = s.replace(/[\u00A0\u202F\s]+/g, "");
 
-  const numStr = match[1];
-  const suffix = match[2];
-  if (!numStr) return 0;
+    const escapeRegExp = (input: string): string =>
+      input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-  const num = parseFloat(numStr);
+    // 各語言的數字單位
+    const units: Array<[string, number]> = [
+      ["tūkst.", 1_000],
+      ["хиљ.", 1_000],
+      ["хил.", 1_000],
+      ["тыс.", 1_000],
+      ["тис.", 1_000],
+      ["χιλ.", 1_000],
+      ["hilj.", 1_000],
+      ["tis.", 1_000],
+      ["ming", 1_000],
+      ["mijë", 1_000],
+      ["elfu", 1_000],
+      ["พัน", 1_000],
+      ["ພັນ", 1_000],
+      ["ពាន់", 1_000],
+      ["ထောင်", 1_000],
+      ["мянга", 1_000],
+      ["миң", 1_000],
+      ["հdelays", 1_000],
+      ["ათ.", 1_000],
+      ["mil", 1_000],
+      ["rb", 1_000],
+      ["þ.", 1_000],
+      ["ሺ", 1_000],
+      ["ද", 1_000],
+      ["千", 1_000],
+      ["천", 1_000],
+      ["E", 1_000],
+      ["N", 1_000],
+      ["B", 1_000],
+      ["k", 1_000],
+      ["သောင်း", 10_000],
+      ["万", 10_000],
+      ["萬", 10_000],
+      ["만", 10_000],
+      ["億", 100_000_000],
+      ["m", 1_000_000],
+      ["b", 1_000_000_000],
+    ];
 
-  if (suffix === "k") return Math.round(num * 1000);
-  if (suffix === "m") return Math.round(num * 1000000);
-  return Math.round(num);
+    let multiplier = 1;
+
+    for (const [unit, mul] of units) {
+      const unitPattern = new RegExp(
+        `^[0-9][0-9.,]*${escapeRegExp(unit)}$`,
+        "i"
+      );
+      if (unitPattern.test(s)) {
+        multiplier = mul;
+        s = s.substring(0, s.length - unit.length).trim();
+        break;
+      }
+    }
+
+    const lastDot = s.lastIndexOf(".");
+    const lastComma = s.lastIndexOf(",");
+    if (lastDot >= 0 && lastComma >= 0) {
+      if (lastDot > lastComma) {
+        s = s.replace(/,/g, "");
+      } else {
+        s = s.replace(/\./g, "");
+        s = s.replace(",", ".");
+      }
+    } else if (multiplier > 1) {
+      s = s.replace(/,/g, "");
+    } else {
+      const onlyDigits = s.replace(/[^0-9]/g, "");
+      const n = Number(onlyDigits);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    const n = Number.parseFloat(s) * multiplier;
+    if (!Number.isFinite(n)) return 0;
+    return Math.round(n);
+  } catch {
+    return 0;
+  }
 }
 
 /**
@@ -94,18 +168,43 @@ function extractInteractionCounts(container: Element): {
   const buttons = container.querySelectorAll(SELECTORS.interactionButton);
   const counts = { likes: 0, replies: 0, reposts: 0, shares: 0 };
 
-  // 按順序對應：回覆、轉發、愛心、分享
-  const labels = ["replies", "reposts", "likes", "shares"] as const;
+  buttons.forEach((button) => {
+    const text = button.textContent?.trim() || "";
+    // 匹配數字（可帶逗號/小數點）+ 可選空格 + 可選單位（中英文）
+    const countMatch = text.match(/\d[\d,.]*\s*[km萬万千億억천]?/i);
+    const count = countMatch ? parseCount(countMatch[0]) : 0;
 
-  buttons.forEach((button, index) => {
-    const label = labels[index];
-    if (label) {
-      const countText = button.textContent?.match(/\d[\d,.]*[km]?/i)?.[0] ?? "";
-      counts[label] = parseCount(countText);
+    // 根據按鈕文字判斷類型
+    if (/^(讚|like)/i.test(text)) {
+      counts.likes = count;
+    } else if (/^(回覆|repl)/i.test(text)) {
+      counts.replies = count;
+    } else if (/^(轉發|轉貼|repost|quote)/i.test(text)) {
+      counts.reposts = count;
+    } else if (/^(分享|share)/i.test(text)) {
+      counts.shares = count;
     }
   });
 
   return counts;
+}
+
+/**
+ * 檢查是否為時間連結（而不是內容連結）
+ * 時間連結的文字通常很短，像 "2天"、"3h"、"1週" 等
+ */
+function isTimeLink(postLink: Element): boolean {
+  const text = postLink.textContent?.trim() || "";
+  // 時間連結通常很短（< 10 字元）
+  if (text.length > 15) return false;
+  // 時間格式
+  if (/^\d+\s*[天時分秒週月年小hdwmy]/i.test(text)) return true;
+  // "剛剛"、"just now" 等
+  if (/^(剛剛|just now|now)$/i.test(text)) return true;
+  // 日期格式
+  if (/^\d+月\d+日$/.test(text)) return true;
+  if (/^\d{1,2}\/\d{1,2}$/.test(text)) return true;
+  return false;
 }
 
 /**
@@ -117,6 +216,11 @@ export function extractPostData(postLink: Element): ThreadPost | null {
 
   const postId = extractPostId(href);
   if (!postId) return null;
+
+  // 只處理時間連結，過濾掉內容連結
+  if (!isTimeLink(postLink)) {
+    return null;
+  }
 
   const container = getPostContainer(postLink);
   if (!container) return null;

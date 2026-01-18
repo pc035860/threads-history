@@ -1,10 +1,14 @@
-import { SELECTORS } from "../shared/constants.ts";
+import { SELECTORS, DEFAULT_MAX_POSTS } from "../shared/constants.ts";
 import { debug } from "../shared/debug.ts";
 import { extractPostData } from "./post-extractor.ts";
 import { savePost } from "../storage/lru-storage.ts";
+import { loadSettings } from "../storage/settings.ts";
 
 // 追蹤元素的可見狀態，用於偵測「進入視窗」的轉換
 const elementVisibility = new WeakMap<Element, boolean>();
+
+// 設定快取
+let cachedMaxPosts = DEFAULT_MAX_POSTS;
 
 /**
  * 處理進入視窗的貼文
@@ -17,7 +21,7 @@ async function handleVisiblePost(postLink: Element): Promise<void> {
   }
 
   // 每次進入視窗都更新 seenAt（LRU 策略）
-  await savePost(postData);
+  await savePost(postData, cachedMaxPosts);
   debug.log("Saved post:", postData.id, postData.author);
 }
 
@@ -88,7 +92,12 @@ const mutationObserver = new MutationObserver((mutations) => {
 /**
  * 啟動觀察者
  */
-export function startObserving(): void {
+export async function startObserving(): Promise<void> {
+  // 載入設定
+  const settings = await loadSettings();
+  cachedMaxPosts = settings.maxPosts;
+  debug.log("Loaded settings, maxPosts:", cachedMaxPosts);
+
   // 先掃描現有貼文
   scanExistingPosts();
 
@@ -96,6 +105,17 @@ export function startObserving(): void {
   mutationObserver.observe(document.body, {
     childList: true,
     subtree: true,
+  });
+
+  // 監聽設定變更
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.threads_settings) {
+      const newSettings = changes.threads_settings.newValue as { maxPosts?: number } | undefined;
+      if (newSettings?.maxPosts) {
+        cachedMaxPosts = newSettings.maxPosts;
+        debug.log("Settings updated, maxPosts:", cachedMaxPosts);
+      }
+    }
   });
 
   debug.log("Started observing");

@@ -1,3 +1,4 @@
+import { Heart, MessageCircle, Repeat2 } from "lucide-react";
 import type { ThreadPost } from "../../storage/types.ts";
 
 interface PostItemProps {
@@ -27,17 +28,31 @@ export function PostItem({ post }: PostItemProps) {
       href={post.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block p-3 hover:bg-gray-50 border-b border-gray-100"
+      className="block p-3 hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-100 dark:border-gray-800"
     >
       <div className="flex items-center justify-between mb-1">
-        <span className="font-medium text-sm text-gray-900">@{post.author}</span>
-        <span className="text-xs text-gray-400">{formatRelativeTime(post.seenAt)}</span>
+        <span className="font-medium text-sm text-gray-900 dark:text-gray-100">@{post.author}</span>
+        <span className="text-xs text-gray-400 dark:text-gray-500">
+          {formatRelativeTime(post.seenAt)}
+        </span>
       </div>
-      <p className="text-sm text-gray-700 line-clamp-2 mb-2">{post.content}</p>
-      <div className="flex gap-4 text-xs text-gray-500">
-        {post.likes > 0 && <span>{post.likes} likes</span>}
-        {post.replies > 0 && <span>{post.replies} replies</span>}
-        {post.reposts > 0 && <span>{post.reposts} reposts</span>}
+      <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 mb-2">{post.content}</p>
+      <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400">
+        {post.likes > 0 && (
+          <span className="flex items-center gap-1">
+            <Heart size={12} /> {post.likes}
+          </span>
+        )}
+        {post.replies > 0 && (
+          <span className="flex items-center gap-1">
+            <MessageCircle size={12} /> {post.replies}
+          </span>
+        )}
+        {post.reposts > 0 && (
+          <span className="flex items-center gap-1">
+            <Repeat2 size={12} /> {post.reposts}
+          </span>
+        )}
       </div>
     </a>
   );

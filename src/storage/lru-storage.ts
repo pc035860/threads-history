@@ -1,16 +1,20 @@
 import type { ThreadPost, StorageData } from "./types.ts";
-import { STORAGE_KEY, MAX_POSTS } from "../shared/constants.ts";
+import { STORAGE_KEY, DEFAULT_MAX_POSTS } from "../shared/constants.ts";
 
 /**
  * 將新貼文插入或更新到貼文列表（LRU 策略）
  * - 如果貼文已存在，移到最前面並更新 seenAt
  * - 新貼文插入最前面
- * - 超過 MAX_POSTS 時移除最舊的
+ * - 超過 maxPosts 時移除最舊的
  */
-export function upsertPost(posts: ThreadPost[], newPost: ThreadPost): ThreadPost[] {
+export function upsertPost(
+  posts: ThreadPost[],
+  newPost: ThreadPost,
+  maxPosts: number = DEFAULT_MAX_POSTS
+): ThreadPost[] {
   const filtered = posts.filter((p) => p.id !== newPost.id);
   filtered.unshift({ ...newPost, seenAt: Date.now() });
-  return filtered.slice(0, MAX_POSTS);
+  return filtered.slice(0, maxPosts);
 }
 
 /**
@@ -33,8 +37,11 @@ export async function savePosts(posts: ThreadPost[]): Promise<void> {
 /**
  * 儲存單一貼文（讀取 -> 更新 -> 寫入）
  */
-export async function savePost(post: ThreadPost): Promise<void> {
+export async function savePost(
+  post: ThreadPost,
+  maxPosts: number = DEFAULT_MAX_POSTS
+): Promise<void> {
   const posts = await loadPosts();
-  const updated = upsertPost(posts, post);
+  const updated = upsertPost(posts, post, maxPosts);
   await savePosts(updated);
 }

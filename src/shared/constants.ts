@@ -8,5 +8,6 @@ export const SELECTORS = {
 export const POST_CONTAINER_DEPTH = 11;
 
 export const STORAGE_KEY = "threads_posts";
+export const SETTINGS_KEY = "threads_settings";
 
-export const MAX_POSTS = 1000;
+export const DEFAULT_MAX_POSTS = 1000;

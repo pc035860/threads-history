@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { upsertPost } from "./lru-storage.ts";
 import type { ThreadPost } from "./types.ts";
-import { MAX_POSTS } from "../shared/constants.ts";
+import { DEFAULT_MAX_POSTS } from "../shared/constants.ts";
 
 function createPost(id: string, seenAt?: number): ThreadPost {
   return {
@@ -87,11 +87,11 @@ describe("upsertPost", () => {
     });
   });
 
-  describe("MAX_POSTS truncation", () => {
-    test("truncates list to MAX_POSTS when exceeding limit", () => {
-      // Create MAX_POSTS items
+  describe("DEFAULT_MAX_POSTS truncation", () => {
+    test("truncates list to DEFAULT_MAX_POSTS when exceeding limit", () => {
+      // Create DEFAULT_MAX_POSTS items
       const posts: ThreadPost[] = [];
-      for (let i = 0; i < MAX_POSTS; i++) {
+      for (let i = 0; i < DEFAULT_MAX_POSTS; i++) {
         posts.push(createPost(`post-${i}`));
       }
 
@@ -99,29 +99,29 @@ describe("upsertPost", () => {
       const newPost = createPost("new-post");
       const result = upsertPost(posts, newPost);
 
-      expect(result.length).toBe(MAX_POSTS);
+      expect(result.length).toBe(DEFAULT_MAX_POSTS);
       expect(result.at(0)?.id).toBe("new-post");
       // Last post should be removed
-      expect(result.some((p) => p.id === `post-${MAX_POSTS - 1}`)).toBe(false);
+      expect(result.some((p) => p.id === `post-${DEFAULT_MAX_POSTS - 1}`)).toBe(false);
     });
 
-    test("keeps oldest posts when at exactly MAX_POSTS", () => {
+    test("keeps oldest posts when at exactly DEFAULT_MAX_POSTS", () => {
       const posts: ThreadPost[] = [];
-      for (let i = 0; i < MAX_POSTS - 1; i++) {
+      for (let i = 0; i < DEFAULT_MAX_POSTS - 1; i++) {
         posts.push(createPost(`post-${i}`));
       }
 
       const newPost = createPost("new-post");
       const result = upsertPost(posts, newPost);
 
-      expect(result.length).toBe(MAX_POSTS);
+      expect(result.length).toBe(DEFAULT_MAX_POSTS);
       expect(result.at(0)?.id).toBe("new-post");
-      expect(result.at(MAX_POSTS - 1)?.id).toBe(`post-${MAX_POSTS - 2}`);
+      expect(result.at(DEFAULT_MAX_POSTS - 1)?.id).toBe(`post-${DEFAULT_MAX_POSTS - 2}`);
     });
 
-    test("does not remove items when updating duplicate at MAX_POSTS", () => {
+    test("does not remove items when updating duplicate at DEFAULT_MAX_POSTS", () => {
       const posts: ThreadPost[] = [];
-      for (let i = 0; i < MAX_POSTS; i++) {
+      for (let i = 0; i < DEFAULT_MAX_POSTS; i++) {
         posts.push(createPost(`post-${i}`));
       }
 
@@ -129,11 +129,11 @@ describe("upsertPost", () => {
       const duplicatePost = createPost("post-500");
       const result = upsertPost(posts, duplicatePost);
 
-      expect(result.length).toBe(MAX_POSTS);
+      expect(result.length).toBe(DEFAULT_MAX_POSTS);
       expect(result.at(0)?.id).toBe("post-500");
       // All original posts should still exist
       expect(result.some((p) => p.id === "post-0")).toBe(true);
-      expect(result.some((p) => p.id === `post-${MAX_POSTS - 1}`)).toBe(true);
+      expect(result.some((p) => p.id === `post-${DEFAULT_MAX_POSTS - 1}`)).toBe(true);
     });
   });
 });

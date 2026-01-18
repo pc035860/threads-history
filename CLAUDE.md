@@ -44,12 +44,18 @@ Content Script (threads.com)     Popup UI (React)
 - 支援深色模式（跟隨系統設定）
 - **Hooks**:
   - `usePostStorage`：讀取/清除貼文，監聽 storage 變更即時更新
-  - `useSearch`：即時搜尋
+  - `useSearch`：即時搜尋（支援多關鍵字 AND 邏輯）
   - `useSettings`：讀取/儲存使用者設定
   - `useI18n`：多語言翻譯
 - **Components**:
+  - `SearchBar`：搜尋輸入框
+  - `PostList`：貼文列表（使用 @tanstack/react-virtual 虛擬滾動）
+  - `PostItem`：單一貼文顯示
+  - `HighlightedText`：搜尋關鍵字高亮（智慧截取、支援深色模式）
   - `SettingsPanel`：調整保留貼文數量
   - `ExportButton`：匯出 JSON/CSV
+- **Utils**:
+  - `highlight.ts`：`getSmartSnippet()` 智慧截取、`splitByKeywords()` 關鍵字分割
 
 ### i18n (`public/_locales/`)
 - 支援 `en`（英文）和 `zh_TW`（繁體中文）

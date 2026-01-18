@@ -18,8 +18,30 @@ function downloadFile(content: string, filename: string, mimeType: string): void
   URL.revokeObjectURL(url);
 }
 
+function formatDateTime(timestamp: number): string {
+  return new Date(timestamp).toLocaleString("zh-TW", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
 function postsToCSV(posts: ThreadPost[]): string {
-  const headers = ["id", "author", "content", "url", "likes", "replies", "reposts", "seenAt"];
+  const headers = [
+    "id",
+    "author",
+    "content",
+    "url",
+    "likes",
+    "replies",
+    "reposts",
+    "seenAt",
+    "seenAtFormatted",
+  ];
   const escapeCSV = (value: string | number): string => {
     const str = String(value);
     if (str.includes(",") || str.includes('"') || str.includes("\n")) {
@@ -38,6 +60,7 @@ function postsToCSV(posts: ThreadPost[]): string {
       post.replies,
       post.reposts,
       post.seenAt,
+      formatDateTime(post.seenAt),
     ]
       .map(escapeCSV)
       .join(",")
@@ -68,7 +91,11 @@ export function ExportButton({ posts }: ExportButtonProps) {
     `threads-posts-${new Date().toISOString().split("T")[0]}.${ext}`;
 
   const exportJSON = () => {
-    const json = JSON.stringify(posts, null, 2);
+    const postsWithFormattedTime = posts.map((post) => ({
+      ...post,
+      seenAtFormatted: formatDateTime(post.seenAt),
+    }));
+    const json = JSON.stringify(postsWithFormattedTime, null, 2);
     downloadFile(json, getFilename("json"), "application/json");
     setOpen(false);
   };

@@ -16,6 +16,7 @@ export function SearchBar({ query, onQueryChange, resultCount }: SearchBarProps)
         placeholder={t("searchPlaceholder")}
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
+        autoFocus
         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
       />
       <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">

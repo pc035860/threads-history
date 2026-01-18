@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import type { ThreadPost, StorageData } from "../../storage/types.ts";
 import { loadPosts } from "../../storage/lru-storage.ts";
 import { STORAGE_KEY } from "../../shared/constants.ts";
+import { measureAsync } from "../../shared/perf.ts";
+import { debug } from "../../shared/debug.ts";
 
 export function usePostStorage() {
   const [posts, setPosts] = useState<ThreadPost[]>([]);
@@ -9,8 +11,12 @@ export function usePostStorage() {
 
   useEffect(() => {
     // Initial load
-    loadPosts()
-      .then(setPosts)
+    measureAsync("usePostStorage (loadPosts)", async () => {
+      const posts = await loadPosts();
+      setPosts(posts);
+      debug.log(`[Perf] usePostStorage: 讀取 ${posts.length} 篇貼文`);
+      return posts.length;
+    })
       .catch((err) => console.error("Failed to load posts:", err))
       .finally(() => setLoading(false));
 

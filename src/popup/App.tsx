@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Settings } from "lucide-react";
 import { usePostStorage } from "./hooks/usePostStorage.ts";
 import { useSearch } from "./hooks/useSearch.ts";
@@ -8,6 +8,8 @@ import { SearchBar } from "./components/SearchBar.tsx";
 import { PostList } from "./components/PostList.tsx";
 import { ExportButton } from "./components/ExportButton.tsx";
 import { SettingsPanel } from "./components/SettingsPanel.tsx";
+import { endMark } from "../shared/perf.ts";
+import { debug } from "../shared/debug.ts";
 
 export function App() {
   const { posts, loading } = usePostStorage();
@@ -15,6 +17,16 @@ export function App() {
   const { settings, loading: settingsLoading, saving, updateSettings } = useSettings();
   const { t } = useI18n();
   const [showSettings, setShowSettings] = useState(false);
+  const firstRender = useRef(true);
+
+  // Performance: 測量首次渲染完成時間
+  useEffect(() => {
+    if (!loading && !settingsLoading && firstRender.current) {
+      firstRender.current = false;
+      endMark("popup-load", `首次渲染完成，顯示 ${filtered.length} 篇貼文`);
+      debug.log(`[Perf] App: posts: ${posts.length}`);
+    }
+  }, [loading, settingsLoading, filtered.length, posts.length]);
 
   if (loading || settingsLoading) {
     return (

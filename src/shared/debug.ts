@@ -2,7 +2,7 @@
  * Debug flag - set to true to enable debug logging
  * In production, this should be false
  */
-const DEBUG = false;
+export const DEBUG = false;
 
 const PREFIX = "[Threads Logger]";
 

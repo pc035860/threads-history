@@ -1,12 +1,11 @@
 # 脆足跡 Threads History
 
 <p align="center">
-  <img src="public/icons/icon.svg" alt="Threads History" width="128" height="128">
+  <img src="public/icons/icon.png" alt="Threads History" width="128" height="128">
 </p>
 
 <p align="center">
   <strong>自動記錄你在 Threads 瀏覽過的貼文</strong><br>
-  Automatically log posts you've seen on Threads
 </p>
 
 ---
@@ -14,8 +13,6 @@
 ## 這是什麼？
 
 「脆足跡」是一個 Chrome 瀏覽器擴充功能。當你在 Threads.com 滑貼文時，它會自動幫你記住看過哪些內容。
-
-想找之前看過的那篇有趣貼文？不用再一直往下滑了！
 
 ## 功能特色
 
@@ -25,14 +22,13 @@
   - 智慧截取包含關鍵字的內容段落
 - **深色模式** — 跟隨系統設定，保護你的眼睛
 - **匯出資料** — 支援 JSON 和 CSV 格式，方便備份
-- **雙語介面** — 支援繁體中文和英文
 - **隱私優先** — 資料只存在你的電腦，不會上傳到任何伺服器
 
 ## 安裝方式
 
-### 方法一：從 Chrome 線上應用程式商店（即將推出）
+### 方法一：從 Chrome 線上應用程式商店安裝
 
-*目前正在審核中，敬請期待！*
+https://chromewebstore.google.com/detail/threads-history/eefmjghkfjnkcaopgpepfeokdbhdicoj
 
 ### 方法二：手動安裝
 
@@ -110,9 +106,8 @@
 這些方法都很**脆弱**—只要 Threads 更新網站設計（改變頁面結構、調整 CSS class 名稱、修改互動方式），擴充功能就可能無法正確識別貼文。
 
 **如果遇到這種情況：**
-1. 請稍待幾天，我會盡快修復並發布更新
-2. 可以在 [GitHub Issues](https://github.com/pc035860/threads-logger/issues) 回報問題
-3. 或者到 [Threads](https://www.threads.com/@pc035860) 私訊我
+
+可以在 [GitHub Issues](https://github.com/pc035860/threads-logger/issues) 回報問題
 
 感謝你的耐心與支持！🙏
 
@@ -133,14 +128,7 @@ bun test
 
 建置完成後，`dist` 資料夾就是可以載入的擴充功能。
 
-詳細的開發文件請參考 [CLAUDE.md](./CLAUDE.md)。
 
 ## 授權
 
 MIT License
-
----
-
-<p align="center">
-  Made with love for Threads users
-</p>

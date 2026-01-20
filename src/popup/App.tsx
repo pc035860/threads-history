@@ -18,6 +18,7 @@ export function App() {
   const { t } = useI18n();
   const [showSettings, setShowSettings] = useState(false);
   const firstRender = useRef(true);
+  const [readyToRender, setReadyToRender] = useState(false);
 
   // Performance: 測量首次渲染完成時間
   useEffect(() => {
@@ -28,7 +29,17 @@ export function App() {
     }
   }, [loading, settingsLoading, filtered.length, posts.length]);
 
-  if (loading || settingsLoading) {
+  // 延遲渲染：先顯示 loading，讓瀏覽器完成 paint，然後再渲染列表
+  useEffect(() => {
+    if (!loading && !settingsLoading && !readyToRender) {
+      const timer = setTimeout(() => {
+        setReadyToRender(true);
+      }, 50); // 50ms 延遲，可調整
+      return () => clearTimeout(timer);
+    }
+  }, [loading, settingsLoading, readyToRender]);
+
+  if (loading || settingsLoading || !readyToRender) {
     return (
       <div className="w-[400px] h-[500px] flex items-center justify-center bg-[var(--bg-primary)]">
         <div className="text-[var(--text-muted)]">{t("appLoading")}</div>

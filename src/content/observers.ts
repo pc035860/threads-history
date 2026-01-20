@@ -67,12 +67,36 @@ function isElementInViewport(element: Element): boolean {
 }
 
 /**
+ * 漸進式處理貼文，避免同時啟動大量 storage 操作
+ * @param links 要處理的貼文連結陣列
+ * @param batchSize 每批處理的數量
+ * @param delay 批次之間的延遲（毫秒）
+ */
+async function processPostsGradually(
+  links: Element[],
+  batchSize: number = 5,
+  delay: number = 100
+): Promise<void> {
+  for (let i = 0; i < links.length; i += batchSize) {
+    const batch = links.slice(i, i + batchSize);
+    await Promise.all(batch.map((link) => handleVisiblePost(link)));
+    if (i + batchSize < links.length) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
+/**
  * 掃描並觀察所有現有的貼文連結
- * 對於已在視窗內的貼文，直接同步處理（不依賴 IntersectionObserver 的異步 callback）
+ * 對於已在視窗內的貼文，使用漸進式處理避免阻塞
  */
 function scanExistingPosts(): void {
   const postLinks = document.querySelectorAll(SELECTORS.postLink);
   debug.log("Found post links:", postLinks.length);
+
+  // 分離已在視窗內和不在視窗內的貼文
+  const inViewport: Element[] = [];
+  const outOfViewport: Element[] = [];
 
   postLinks.forEach((link) => {
     // 如果已經在追蹤中，跳過
@@ -82,17 +106,24 @@ function scanExistingPosts(): void {
     const isInViewport = isElementInViewport(link);
 
     if (isInViewport) {
-      // 已在視窗內：直接處理並標記為可見
+      inViewport.push(link);
       elementVisibility.set(link, true);
-      handleVisiblePost(link);
     } else {
-      // 不在視窗內：標記為不可見
+      outOfViewport.push(link);
       elementVisibility.set(link, false);
     }
 
     // 開始觀察，以偵測未來的進入/離開視窗
     intersectionObserver.observe(link);
   });
+
+  // 漸進式處理視窗內的貼文，避免阻塞 storage
+  if (inViewport.length > 0) {
+    debug.log("Processing", inViewport.length, "posts in viewport gradually");
+    processPostsGradually(inViewport, 5, 50).catch((err) => {
+      debug.log("Error processing posts gradually:", err);
+    });
+  }
 }
 
 /**

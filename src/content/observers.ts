@@ -1,6 +1,6 @@
 import { SELECTORS, DEFAULT_MAX_POSTS } from "../shared/constants.ts";
 import { debug } from "../shared/debug.ts";
-import { extractPostData } from "./post-extractor.ts";
+import { extractPostData, findAllPostLinks } from "./post-extractor.ts";
 import { savePost } from "../storage/lru-storage.ts";
 import { loadSettings } from "../storage/settings.ts";
 
@@ -91,7 +91,7 @@ async function processPostsGradually(
  * 對於已在視窗內的貼文，使用漸進式處理避免阻塞
  */
 function scanExistingPosts(): void {
-  const postLinks = document.querySelectorAll(SELECTORS.postLink);
+  const postLinks = findAllPostLinks();
   debug.log("Found post links:", postLinks.length);
 
   // 分離已在視窗內和不在視窗內的貼文

@@ -1,5 +1,35 @@
 import type { ThreadPost } from "../storage/types.ts";
-import { SELECTORS, POST_CONTAINER_DEPTH } from "../shared/constants.ts";
+import { SELECTORS, POST_CONTAINER_DEPTH, HEADER_AUTHOR_LINK_LIMIT } from "../shared/constants.ts";
+
+/**
+ * 檢查元素是否在頁面上可見
+ * 用於過濾切換頁籤後被隱藏的舊內容
+ */
+function isElementVisible(element: Element): boolean {
+  if (!element) return false;
+
+  // 檢查元素本身的顯示狀態
+  const style = window.getComputedStyle(element);
+  if (style.display === "none") return false;
+  if (style.visibility === "hidden") return false;
+  if (style.opacity === "0") return false;
+
+  // 檢查是否有任何祖先被隱藏
+  let parent: Element | null = element;
+  while (parent && parent !== document.body) {
+    const parentStyle = window.getComputedStyle(parent);
+    if (parentStyle.display === "none" || parentStyle.visibility === "hidden") {
+      return false;
+    }
+    parent = parent.parentElement;
+  }
+
+  // 檢查元素是否在視口內（或至少有實際尺寸）
+  const rect = element.getBoundingClientRect();
+  if (rect.width === 0 && rect.height === 0) return false;
+
+  return true;
+}
 
 /**
  * 檢查元素是否在引用區塊內（有完整四邊 border 的祖先）
@@ -54,39 +84,77 @@ function hasValidContent(container: Element): boolean {
 /**
  * 從 post link 元素往上爬找到貼文容器
  * 策略：
- * 1. 先找 authorCount=1 的最大容器
- * 2. 如果該容器沒有有效內容，繼續往上找第一個有內容的容器
+ * 1. 往上爬直到找到包含有效內容的容器
+ * 2. 選擇 contentSpan 數量最多且不包含多個不同作者的容器
+ * 3. 有些貼文的作者連結會重複出現（頭像+用戶名），所以需要檢查是否為不同作者
  */
 function getPostContainer(postLink: Element): Element | null {
   let current: Element | null = postLink;
-  let bestContainer: Element | null = null;
-  let firstMultiAuthorWithContent: Element | null = null;
+  const candidates: Array<{
+    element: Element;
+    authorCount: number;
+    uniqueAuthors: Set<string>;
+    contentSpanCount: number;
+    hasValidContent: boolean;
+    allUniqueAuthors: Set<string>;
+  }> = [];
 
   for (let i = 0; i < POST_CONTAINER_DEPTH && current; i++) {
     current = current.parentElement;
     if (!current) break;
 
-    // 計算這層包含多少個作者連結
-    const authorCount = current.querySelectorAll(SELECTORS.authorLink).length;
+    // 計算這層包含多少個作者連結，以及有多少個不同的作者
+    const authorLinks = current.querySelectorAll(SELECTORS.authorLink);
 
-    if (authorCount === 1) {
-      // 只有 1 個作者，這可能是正確的貼文容器
-      bestContainer = current;
-    } else if (authorCount > 1) {
-      // 超過 1 個作者，記錄第一個有內容的容器後停止
-      if (!firstMultiAuthorWithContent && hasValidContent(current)) {
-        firstMultiAuthorWithContent = current;
+    // 計算「完整」的不同作者數量（用於判斷是否進入多貼文容器）
+    const allUniqueAuthors = new Set<string>();
+    authorLinks.forEach((link) => {
+      const href = link.getAttribute("href");
+      if (href) allUniqueAuthors.add(href);
+    });
+
+    // 計算「只看前面幾個」的不同作者數量（用於容器選擇，避免 @mentions 影響）
+    // 貼文作者的連結通常在 header 區域（前面），mentions 在內容區域（後面）
+    const headerUniqueAuthors = new Set<string>();
+    authorLinks.forEach((link, idx) => {
+      if (idx < HEADER_AUTHOR_LINK_LIMIT) {
+        const href = link.getAttribute("href");
+        if (href) headerUniqueAuthors.add(href);
       }
+    });
+
+    const contentSpanCount = current.querySelectorAll(SELECTORS.contentSpan).length;
+    const hasValid = hasValidContent(current);
+
+    candidates.push({
+      element: current,
+      authorCount: authorLinks.length,
+      uniqueAuthors: headerUniqueAuthors, // 用於容器選擇
+      contentSpanCount,
+      hasValidContent: hasValid,
+      allUniqueAuthors, // 保留完整資訊用於 break 判斷
+    });
+
+    // 使用「完整」作者數來判斷是否進入多貼文容器
+    // 如果有多於 3 個不同作者，表示已進入包含多個貼文的容器
+    if (allUniqueAuthors.size > 3) {
       break;
     }
   }
 
-  // 如果 bestContainer 沒有有效內容，使用 firstMultiAuthorWithContent
-  if (bestContainer && !hasValidContent(bestContainer) && firstMultiAuthorWithContent) {
-    return firstMultiAuthorWithContent;
+  // 策略：選擇 contentSpan 數量最多且最多只有 2 個不同作者的容器
+  const validCandidates = candidates.filter(
+    (c) => c.uniqueAuthors.size <= 2 && c.contentSpanCount >= 2
+  );
+
+  if (validCandidates.length === 0) {
+    // fallback: 選擇第一個有內容的容器
+    return candidates.find((c) => c.hasValidContent)?.element ?? null;
   }
 
-  return bestContainer;
+  // 選擇 contentSpan 數量最多的
+  validCandidates.sort((a, b) => b.contentSpanCount - a.contentSpanCount);
+  return validCandidates[0]?.element ?? null;
 }
 
 /**
@@ -228,15 +296,18 @@ function extractInteractionCounts(container: Element): {
  */
 function isTimeLink(postLink: Element): boolean {
   const text = postLink.textContent?.trim() || "";
-  // 時間連結通常很短（< 10 字元）
+  // 時間連結通常很短（< 15 字元）
   if (text.length > 15) return false;
-  // 時間格式
+  // 時間格式（相對時間）
   if (/^\d+\s*[天時分秒週月年小hdwmy]/i.test(text)) return true;
   // "剛剛"、"just now" 等
   if (/^(剛剛|just now|now)$/i.test(text)) return true;
-  // 日期格式
+  // 日期格式：中文 "1月9日"
   if (/^\d+月\d+日$/.test(text)) return true;
+  // 日期格式：斜線分隔 "1/9" 或 "01/09"
   if (/^\d{1,2}\/\d{1,2}$/.test(text)) return true;
+  // 日期格式：ISO-like "2026-1-9" 或 "2025-12-31"
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(text)) return true;
   return false;
 }
 
@@ -365,7 +436,9 @@ export function extractPostData(postLink: Element): ThreadPost | null {
  * 找出頁面上所有的貼文連結
  */
 export function findAllPostLinks(): Element[] {
-  return Array.from(document.querySelectorAll(SELECTORS.postLink));
+  const allLinks = Array.from(document.querySelectorAll(SELECTORS.postLink));
+  // 過濾掉不可見的元素（例如切換頁籤後被隱藏的舊內容）
+  return allLinks.filter((link) => isElementVisible(link));
 }
 
 // Export for testing only

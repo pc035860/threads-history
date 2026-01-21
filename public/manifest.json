@@ -21,6 +21,10 @@
       "128": "icons/icon-128.png"
     }
   },
+  "background": {
+    "service_worker": "background/index.js",
+    "type": "module"
+  },
   "content_scripts": [
     {
       "matches": ["https://www.threads.com/*"],

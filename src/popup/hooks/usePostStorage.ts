@@ -1,7 +1,11 @@
-import { useState, useEffect } from "react";
-import type { ThreadPost, StorageData } from "../../storage/types.ts";
-import { loadPosts } from "../../storage/lru-storage.ts";
-import { STORAGE_KEY } from "../../shared/constants.ts";
+/**
+ * usePostStorage Hook
+ * Loads and manages posts from IndexedDB via Background Service Worker
+ */
+
+import { useState, useEffect, useCallback } from "react";
+import type { ThreadPost } from "../../storage/types.ts";
+import { getAllPosts, clearPosts, subscribeToPostsUpdates } from "../utils/messaging.ts";
 import { measureAsync } from "../../shared/perf.ts";
 import { debug } from "../../shared/debug.ts";
 
@@ -9,37 +13,45 @@ export function usePostStorage() {
   const [posts, setPosts] = useState<ThreadPost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Initial load
-    measureAsync("usePostStorage (loadPosts)", async () => {
-      const posts = await loadPosts();
-      setPosts(posts);
-      debug.log(`[Perf] usePostStorage: 讀取 ${posts.length} 篇貼文`);
-      return posts.length;
-    })
-      .catch((err) => console.error("Failed to load posts:", err))
-      .finally(() => setLoading(false));
-
-    // Subscribe to storage changes for live updates
-    const handleStorageChange = (
-      changes: { [key: string]: chrome.storage.StorageChange },
-      areaName: string
-    ) => {
-      if (areaName !== "local") return;
-      if (!changes[STORAGE_KEY]) return;
-
-      const newData = changes[STORAGE_KEY].newValue as StorageData | undefined;
-      if (newData?.posts) {
-        setPosts(newData.posts);
-      }
-    };
-
-    chrome.storage.onChanged.addListener(handleStorageChange);
-
-    return () => {
-      chrome.storage.onChanged.removeListener(handleStorageChange);
-    };
+  // Load posts from IndexedDB
+  const loadPosts = useCallback(async () => {
+    try {
+      const loadedPosts = await measureAsync("usePostStorage (getAllPosts)", async () => {
+        return await getAllPosts();
+      });
+      setPosts(loadedPosts);
+      debug.log(`[Perf] usePostStorage: 讀取 ${loadedPosts.length} 篇貼文`);
+    } catch (error) {
+      console.error("Failed to load posts:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return { posts, loading };
+  // Initial load
+  useEffect(() => {
+    loadPosts();
+  }, [loadPosts]);
+
+  // Subscribe to posts update notifications from Background
+  useEffect(() => {
+    const unsubscribe = subscribeToPostsUpdates(() => {
+      debug.log("[usePostStorage] Posts updated notification received, reloading...");
+      loadPosts();
+    });
+
+    return unsubscribe;
+  }, [loadPosts]);
+
+  // Clear all posts
+  const clearAll = useCallback(async () => {
+    try {
+      await clearPosts();
+      await loadPosts(); // Reload to reflect changes
+    } catch (error) {
+      console.error("Failed to clear posts:", error);
+    }
+  }, [loadPosts]);
+
+  return { posts, loading, clearAll, reload: loadPosts };
 }

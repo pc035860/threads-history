@@ -13,7 +13,12 @@
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write src/",
     "format:check": "prettier --check src/",
-    "prepare": "husky"
+    "prepare": "husky",
+    "release": "bun run scripts/release.ts",
+    "release:patch": "bun run scripts/release.ts patch",
+    "release:minor": "bun run scripts/release.ts minor",
+    "release:major": "bun run scripts/release.ts major",
+    "release:dry": "bun run scripts/release.ts patch --dry-run"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

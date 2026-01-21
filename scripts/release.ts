@@ -228,29 +228,16 @@ function generateReleaseNote(version: string, categories: CommitCategory): strin
   md += `**發布日期**: ${date}\n\n`;
 
   if (categories.features.length > 0) {
-    md += `## ✨ 新功能\n\n${categories.features.join("\n")}\n\n`;
+    md += `## 新功能\n\n${categories.features.join("\n")}\n\n`;
   }
 
   if (categories.fixes.length > 0) {
-    md += `## 🐛 錯誤修復\n\n${categories.fixes.join("\n")}\n\n`;
-  }
-
-  if (categories.changes.length > 0) {
-    md += `## 🔧 變更\n\n${categories.changes.join("\n")}\n\n`;
-  }
-
-  if (categories.docs.length > 0) {
-    md += `## 📚 文件\n\n${categories.docs.join("\n")}\n\n`;
+    md += `## 錯誤修復\n\n${categories.fixes.join("\n")}\n\n`;
   }
 
   // 如果沒有內容，加入預設說明
-  if (
-    categories.features.length === 0 &&
-    categories.fixes.length === 0 &&
-    categories.changes.length === 0 &&
-    categories.docs.length === 0
-  ) {
-    md += `## 📝 變更說明\n\n請參考 git log 取得完整變更記錄。\n\n`;
+  if (categories.features.length === 0 && categories.fixes.length === 0) {
+    md += `## 變更說明\n\n請參考 git log 取得完整變更記錄。\n\n`;
   }
 
   return md;

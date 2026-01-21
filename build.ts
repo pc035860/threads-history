@@ -21,7 +21,6 @@ async function buildContentScript() {
     entrypoints: ["src/content/index.ts"],
     outdir: path.join(DIST_DIR, "content"),
     naming: "[name].js",
-    minify: true,
   });
 
   if (!result.success) {
@@ -35,7 +34,6 @@ async function buildBackground() {
     entrypoints: ["src/background/index.ts"],
     outdir: path.join(DIST_DIR, "background"),
     naming: "[name].js",
-    minify: true,
   });
 
   if (!result.success) {
@@ -50,7 +48,6 @@ async function buildPopup() {
     entrypoints: ["src/popup/index.tsx"],
     outdir: path.join(DIST_DIR, "popup"),
     naming: "[name].js",
-    minify: true,
   });
 
   if (!result.success) {

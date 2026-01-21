@@ -6,6 +6,9 @@ out
 dist
 *.tgz
 
+# release packages
+packing
+
 # code coverage
 coverage
 *.lcov

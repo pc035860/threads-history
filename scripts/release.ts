@@ -12,6 +12,9 @@
  * - Support --dry-run for preview
  */
 
+import { mkdir } from "fs/promises";
+import path from "path";
+
 // =====================
 // 型別定義
 // =====================
@@ -287,6 +290,49 @@ async function createGitTag(version: string, dryRun: boolean): Promise<void> {
   console.log(`✓ Created tag: ${tagName}`);
 }
 
+/**
+ * 打包擴展到 packing/ 目錄
+ */
+async function packExtension(version: string, dryRun: boolean): Promise<void> {
+  const PACKING_DIR = "packing";
+  const zipFileName = `chrome-v${version}.zip`;
+  const zipPath = path.join(PACKING_DIR, zipFileName);
+
+  if (dryRun) {
+    console.log(`[DRY RUN] Would create ${zipPath}`);
+    return;
+  }
+
+  // 1. 建立 dist
+  console.log("Building extension...");
+  const buildProc = Bun.spawn(["bun", "run", "build.ts"], {
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  const buildExitCode = await buildProc.exited;
+  if (buildExitCode !== 0) {
+    throw new Error("Build failed");
+  }
+  console.log("✓ Build complete");
+
+  // 2. 建立 packing 目錄
+  await mkdir(PACKING_DIR, { recursive: true });
+
+  // 3. 壓縮 dist/ 到 zip
+  console.log(`Creating ${zipFileName}...`);
+  const zipProc = Bun.spawn(["zip", "-r", zipPath, "dist/"], {
+    stdout: "inherit",
+    stderr: "inherit",
+    cwd: ".",
+  });
+  const zipExitCode = await zipProc.exited;
+  if (zipExitCode !== 0) {
+    throw new Error("Zip creation failed");
+  }
+
+  console.log(`✓ Created ${zipPath}`);
+}
+
 // =====================
 // 主流程
 // =====================
@@ -372,15 +418,19 @@ async function main() {
   await createGitTag(newVersion, dryRun);
   console.log("─".repeat(40) + "\n");
 
-  // 8. 後續步驟提示
+  // 8. 打包擴展
+  console.log("─".repeat(40));
+  await packExtension(newVersion, dryRun);
+  console.log("─".repeat(40) + "\n");
+
+  // 9. 後續步驟提示
   if (!dryRun) {
     console.log(`\n✨ Release ${newVersion} created successfully!\n`);
     console.log("Next steps:");
     console.log(`  1. Review changes:   git show HEAD`);
     console.log(`  2. Push to remote:   git push origin main`);
     console.log(`                      git push origin v${newVersion}`);
-    console.log(`  3. Build extension: bun run build`);
-    console.log(`  4. Upload to Chrome Web Store: dist/ folder\n`);
+    console.log(`  3. Upload to Chrome Web Store: packing/chrome-v${newVersion}.zip\n`);
   } else {
     console.log(`\n[DRY RUN] Complete. Run without --dry-run to apply changes.\n`);
   }

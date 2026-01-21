@@ -13,7 +13,7 @@ import { debug } from "../shared/debug.ts";
 
 export function App() {
   const { posts, loading } = usePostStorage();
-  const { query, setQuery, filtered, keywords } = useSearch(posts);
+  const { query, setQuery, results, keywords, performAutoSearch, resetResults } = useSearch(posts);
   const { settings, loading: settingsLoading, saving, updateSettings } = useSettings();
   const { t } = useI18n();
   const [showSettings, setShowSettings] = useState(false);
@@ -24,10 +24,10 @@ export function App() {
   useEffect(() => {
     if (!loading && !settingsLoading && firstRender.current) {
       firstRender.current = false;
-      endMark("popup-load", `首次渲染完成，顯示 ${filtered.length} 篇貼文`);
+      endMark("popup-load", `首次渲染完成，顯示 ${results.length} 篇貼文`);
       debug.log(`[Perf] App: posts: ${posts.length}`);
     }
-  }, [loading, settingsLoading, filtered.length, posts.length]);
+  }, [loading, settingsLoading, results.length, posts.length]);
 
   // 延遲渲染：先顯示 loading，讓瀏覽器完成 paint，然後再渲染列表
   useEffect(() => {
@@ -38,6 +38,20 @@ export function App() {
       return () => clearTimeout(timer);
     }
   }, [loading, settingsLoading, readyToRender]);
+
+  // When posts change, reset search results
+  useEffect(() => {
+    if (!loading) {
+      resetResults();
+    }
+  }, [posts, loading, resetResults]);
+
+  // Auto-search when keywords change
+  useEffect(() => {
+    if (!loading) {
+      performAutoSearch();
+    }
+  }, [query, loading, performAutoSearch]);
 
   if (loading || settingsLoading || !readyToRender) {
     return (
@@ -59,7 +73,7 @@ export function App() {
           >
             <Settings size={18} />
           </button>
-          <ExportButton posts={filtered} />
+          <ExportButton posts={results} />
         </div>
       </header>
 
@@ -67,9 +81,9 @@ export function App() {
         <SettingsPanel settings={settings} saving={saving} onSave={updateSettings} />
       )}
 
-      <SearchBar query={query} onQueryChange={setQuery} resultCount={filtered.length} />
+      <SearchBar query={query} onQueryChange={setQuery} resultCount={results.length} />
 
-      <PostList posts={filtered} keywords={keywords} />
+      <PostList posts={results} keywords={keywords} />
     </div>
   );
 }

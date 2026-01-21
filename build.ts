@@ -12,6 +12,7 @@ async function clean() {
   await mkdir(path.join(DIST_DIR, "popup"));
   await mkdir(path.join(DIST_DIR, "popup", "styles"));
   await mkdir(path.join(DIST_DIR, "content"));
+  await mkdir(path.join(DIST_DIR, "background"));
   await mkdir(path.join(DIST_DIR, "icons"));
 }
 
@@ -25,6 +26,20 @@ async function buildContentScript() {
 
   if (!result.success) {
     console.error("Content script build failed:", result.logs);
+    process.exit(1);
+  }
+}
+
+async function buildBackground() {
+  const result = await Bun.build({
+    entrypoints: ["src/background/index.ts"],
+    outdir: path.join(DIST_DIR, "background"),
+    naming: "[name].js",
+    minify: true,
+  });
+
+  if (!result.success) {
+    console.error("Background script build failed:", result.logs);
     process.exit(1);
   }
 }
@@ -89,7 +104,7 @@ async function build() {
   await clean();
   console.log("Cleaned dist directory");
 
-  await Promise.all([buildContentScript(), buildPopup()]);
+  await Promise.all([buildContentScript(), buildPopup(), buildBackground()]);
   console.log("Built scripts");
 
   await buildCSS();

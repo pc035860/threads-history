@@ -1,14 +1,10 @@
-import { SELECTORS, DEFAULT_MAX_POSTS } from "../shared/constants.ts";
+import { SELECTORS } from "../shared/constants.ts";
 import { debug } from "../shared/debug.ts";
 import { extractPostData, findAllPostLinks } from "./post-extractor.ts";
-import { savePost } from "../storage/lru-storage.ts";
-import { loadSettings } from "../storage/settings.ts";
+import { ErrorCode } from "../shared/messages.ts";
 
 // 追蹤元素的可見狀態，用於偵測「進入視窗」的轉換
 const elementVisibility = new WeakMap<Element, boolean>();
-
-// 設定快取
-let cachedMaxPosts = DEFAULT_MAX_POSTS;
 
 /**
  * 處理進入視窗的貼文
@@ -20,9 +16,72 @@ async function handleVisiblePost(postLink: Element): Promise<void> {
     return;
   }
 
-  // 每次進入視窗都更新 seenAt（LRU 策略）
-  await savePost(postData, cachedMaxPosts);
-  debug.log("Saved post:", postData.id, postData.author);
+  // 使用 Message Passing 儲存到 Background Service Worker (IndexedDB)
+  // 錯誤處理策略：
+  // - 可重試錯誤（MIGRATION_IN_PROGRESS, NETWORK_ERROR, UNKNOWN_ERROR, undefined）：無限重試
+  // - 不可重試錯誤（VALIDATION_ERROR, INVALID_MESSAGE_FORMAT）：直接放棄並 log
+  const baseDelay = 500; // 500ms base delay
+  const maxDelay = 10000; // 10s max delay
+
+  let attempt = 0;
+  while (true) {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: "POST_UPSERT",
+        payload: postData,
+      });
+
+      // 檢查 response 是否成功
+      if (response && typeof response === "object" && "success" in response) {
+        if (response.success === false) {
+          // 檢查錯誤碼，判斷是否可重試
+          const errorCode = response.code;
+
+          // 不可重試的錯誤：直接放棄
+          if (
+            errorCode === ErrorCode.VALIDATION_ERROR ||
+            errorCode === ErrorCode.INVALID_MESSAGE_FORMAT
+          ) {
+            debug.error(
+              `Non-retryable error (${errorCode}):`,
+              response.error,
+              "Post:",
+              postData.id
+            );
+            return;
+          }
+
+          // 可重試的錯誤：MIGRATION_IN_PROGRESS, NETWORK_ERROR, UNKNOWN_ERROR, undefined
+          // （undefined 表示舊格式回應，保守處理為可重試）
+          const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
+          attempt++;
+          debug.log(
+            `Retryable error (${errorCode ?? "UNKNOWN"}), retrying save post (attempt ${attempt}):`,
+            postData.id,
+            `delay: ${delay}ms`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+
+      // Success (void response or success !== false)
+      debug.log("Saved post:", postData.id, postData.author);
+      return;
+    } catch (error) {
+      // 網路錯誤或例外：可重試
+      const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
+      attempt++;
+      debug.log(
+        `Network error, retrying save post (attempt ${attempt}):`,
+        postData.id,
+        `delay: ${delay}ms`,
+        error
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      // Continue loop (infinite retry)
+    }
+  }
 }
 
 /**
@@ -152,11 +211,6 @@ const mutationObserver = new MutationObserver((mutations) => {
  * 啟動觀察者
  */
 export async function startObserving(): Promise<void> {
-  // 載入設定
-  const settings = await loadSettings();
-  cachedMaxPosts = settings.maxPosts;
-  debug.log("Loaded settings, maxPosts:", cachedMaxPosts);
-
   // 立即掃描現有貼文
   scanExistingPosts();
 
@@ -168,17 +222,6 @@ export async function startObserving(): Promise<void> {
   mutationObserver.observe(document.body, {
     childList: true,
     subtree: true,
-  });
-
-  // 監聽設定變更
-  chrome.storage.onChanged.addListener((changes) => {
-    if (changes.threads_settings) {
-      const newSettings = changes.threads_settings.newValue as { maxPosts?: number } | undefined;
-      if (newSettings?.maxPosts) {
-        cachedMaxPosts = newSettings.maxPosts;
-        debug.log("Settings updated, maxPosts:", cachedMaxPosts);
-      }
-    }
   });
 
   debug.log("Started observing");

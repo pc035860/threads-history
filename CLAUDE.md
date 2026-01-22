@@ -19,6 +19,12 @@ bun run dev          # 同 build，附帶提示訊息
 bun test             # 執行測試（使用 bun:test）
 bun run lint         # ESLint 檢查
 bun run format       # Prettier 格式化
+
+# Release commands
+bun run release:patch   # 1.0.0 -> 1.0.1 (bug fixes)
+bun run release:minor   # 1.0.0 -> 1.1.0 (new features)
+bun run release:major   # 1.0.0 -> 2.0.0 (breaking changes)
+bun run release:dry     # 預覽發布變更
 ```
 
 ## Architecture
@@ -140,6 +146,15 @@ React 19 + Tailwind CSS 4 + @tanstack/react-virtual（虛擬滾動）
 - **settings.ts**: 舊版設定管理
 - **types.ts**: 共享型別定義（`ThreadPost` 型別仍被使用）
 
+### Scripts (`scripts/`)
+- **release.ts**: Semantic Versioning Release 自動化腳本
+  - 自動更新版本號（package.json + manifest.json）
+  - 從 git commits 生成 Release Note（只包含新功能、錯誤修復）
+  - 建立 git commit 和 tag
+  - 執行 build 並打包到 `packing/chrome-vX.X.X.zip`
+  - 支援 `--dry-run` 預覽模式
+  - 位置：`scripts/release.ts:1-390`
+
 ### i18n (`public/_locales/`)
 - 支援 `en`（英文）和 `zh_TW`（繁體中文）
 - 使用 Chrome Extension i18n API（`chrome.i18n.getMessage`）
@@ -148,11 +163,40 @@ React 19 + Tailwind CSS 4 + @tanstack/react-virtual（虛擬滾動）
 
 - 使用 Bun 作為 runtime 和 bundler（不使用 Vite/Webpack）
 - build.ts 處理：TypeScript 編譯、Tailwind CSS 處理、複製 manifest 和 icons
+- **Minify 設定**：JS 不 minify（便於除錯），CSS 保持 minify
 - 沒有 HMR，修改後需重新 build 並在 Chrome 重新載入 extension
 - ESLint + Prettier + Husky pre-commit hooks 確保程式碼品質
 - **資料遷移**：首次安裝新版本時會自動從 chrome.storage.local 遷移到 IndexedDB
   - 遷移期間所有請求（除了 `POST_GET_COUNT`）會被阻擋並返回 `MIGRATION_IN_PROGRESS` 錯誤
   - 遷移失敗會保留舊資料，下次重試
+
+### Release Workflow
+
+專案使用 Semantic Versioning 和自動化發布流程：
+
+1. **版本升級類型**：
+   - `patch` (1.0.0 -> 1.0.1): 錯誤修復
+   - `minor` (1.0.0 -> 1.1.0): 新功能
+   - `major` (1.0.0 -> 2.0.0): 破壞性變更
+
+2. **執行 release**：
+   ```bash
+   bun run release:patch  # 自動完成所有步驟
+   ```
+
+3. **自動執行的步驟**：
+   - 更新 `package.json` 和 `public/manifest.json` 版本號
+   - 解析 Conventional Commits 生成 `RELEASE_NOTE_vX.X.X.md`
+   - 建立 git commit: `chore(release): bump version to X.X.X`
+   - 建立 git tag: `vX.X.X`
+   - 執行 build 並打包到 `packing/chrome-vX.X.X.zip`
+
+4. **後續步驟**：
+   ```bash
+   git push origin main
+   git push origin v1.0.1
+   # 上傳 packing/chrome-v1.0.1.zip 到 Chrome Web Store
+   ```
 
 ## Key Design Decisions
 

@@ -127,9 +127,26 @@ bun run build
 
 # 執行測試
 bun test
+
+# 發布新版本
+bun run release:patch   # 錯誤修復 (1.0.0 -> 1.0.1)
+bun run release:minor   # 新功能 (1.0.0 -> 1.1.0)
+bun run release:major   # 破壞性變更 (1.0.0 -> 2.0.0)
+bun run release:dry     # 預覽發布變更
 ```
 
 建置完成後，`dist` 資料夾就是可以載入的擴充功能。
+
+### Release 流程
+
+執行 `bun run release:patch` 會自動完成以下步驟：
+
+1. 更新版本號（`package.json` + `public/manifest.json`）
+2. 從 git commits 生成 `RELEASE_NOTE_vX.X.X.md`
+3. 建立 git commit 和 tag
+4. 執行 build 並打包到 `packing/chrome-vX.X.X.zip`
+
+接著只需推送到遠端並上傳 zip 檔到 Chrome Web Store。
 
 
 ## 授權

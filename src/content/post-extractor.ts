@@ -97,6 +97,7 @@ function getPostContainer(postLink: Element): Element | null {
     contentSpanCount: number;
     hasValidContent: boolean;
     allUniqueAuthors: Set<string>;
+    isMultiPostContainer: boolean;
   }> = [];
 
   for (let i = 0; i < POST_CONTAINER_DEPTH && current; i++) {
@@ -126,6 +127,18 @@ function getPostContainer(postLink: Element): Element | null {
     const contentSpanCount = current.querySelectorAll(SELECTORS.contentSpan).length;
     const hasValid = hasValidContent(current);
 
+    // 檢測容器是否包含多個不同的貼文（串文頁面檢測）
+    const timeLinks = current.querySelectorAll(SELECTORS.postLink);
+    const postIdsInContainer = new Set<string>();
+
+    timeLinks.forEach((link) => {
+      const linkHref = link.getAttribute("href");
+      const linkPostId = linkHref?.match(/\/post\/([^/?]+)/)?.[1];
+      if (linkPostId) postIdsInContainer.add(linkPostId);
+    });
+
+    const isMultiPostContainer = postIdsInContainer.size > 1;
+
     candidates.push({
       element: current,
       authorCount: authorLinks.length,
@@ -133,6 +146,7 @@ function getPostContainer(postLink: Element): Element | null {
       contentSpanCount,
       hasValidContent: hasValid,
       allUniqueAuthors, // 保留完整資訊用於 break 判斷
+      isMultiPostContainer,
     });
 
     // 使用「完整」作者數來判斷是否進入多貼文容器
@@ -142,9 +156,9 @@ function getPostContainer(postLink: Element): Element | null {
     }
   }
 
-  // 策略：選擇 contentSpan 數量最多且最多只有 2 個不同作者的容器
+  // 策略：選擇 contentSpan 數量最多且有 1-2 個不同作者的容器
   const validCandidates = candidates.filter(
-    (c) => c.uniqueAuthors.size <= 2 && c.contentSpanCount >= 2
+    (c) => c.uniqueAuthors.size >= 1 && c.uniqueAuthors.size <= 2 && c.contentSpanCount >= 2
   );
 
   if (validCandidates.length === 0) {
@@ -152,9 +166,47 @@ function getPostContainer(postLink: Element): Element | null {
     return candidates.find((c) => c.hasValidContent)?.element ?? null;
   }
 
-  // 選擇 contentSpan 數量最多的
-  validCandidates.sort((a, b) => b.contentSpanCount - a.contentSpanCount);
-  return validCandidates[0]?.element ?? null;
+  // 過濾掉多貼文容器（串文頁面的大容器）
+  const singlePostCandidates = validCandidates.filter((c) => !c.isMultiPostContainer);
+
+  const candidatesToSort = singlePostCandidates.length > 0 ? singlePostCandidates : validCandidates; // fallback: 如果所有容器都是多貼文容器，使用原邏輯
+
+  // 優先選擇有有效內容且 contentSpan 數量適中的容器
+  candidatesToSort.sort((a, b) => {
+    // 1. 優先選擇有有效內容的容器
+    if (a.hasValidContent && !b.hasValidContent) return -1;
+    if (!a.hasValidContent && b.hasValidContent) return 1;
+
+    // 2. 都有內容或都沒內容時，選擇 contentSpan 數量在「理想範圍」的容器
+    const aIdeal = a.contentSpanCount >= 4 && a.contentSpanCount <= 20;
+    const bIdeal = b.contentSpanCount >= 4 && b.contentSpanCount <= 20;
+
+    // 優先選擇在理想範圍內的容器
+    if (aIdeal && !bIdeal) return -1;
+    if (!aIdeal && bIdeal) return 1;
+
+    // 都在理想範圍內，選較小的（更精確）
+    if (aIdeal && bIdeal) {
+      return a.contentSpanCount - b.contentSpanCount;
+    }
+
+    // 都不在理想範圍，檢查基本範圍（2-30）
+    const aInRange = a.contentSpanCount >= 2 && a.contentSpanCount <= 30;
+    const bInRange = b.contentSpanCount >= 2 && b.contentSpanCount <= 30;
+
+    if (aInRange && !bInRange) return -1;
+    if (!aInRange && bInRange) return 1;
+
+    // 都在基本範圍內但不在理想範圍，選較大的（避免選到只有作者+日期的容器）
+    if (aInRange && bInRange) {
+      return b.contentSpanCount - a.contentSpanCount;
+    }
+
+    // 都不在範圍內，選較大的（fallback to original logic）
+    return b.contentSpanCount - a.contentSpanCount;
+  });
+
+  return candidatesToSort[0]?.element ?? null;
 }
 
 /**
@@ -368,6 +420,8 @@ export function extractPostData(postLink: Element): ThreadPost | null {
     if (/^\d+\s*[天時分秒週月年小]/.test(text)) return; // 2天、23小時
     if (/^\d+\s*[hdwmy]/i.test(text)) return; // 2h, 3d, 1w
     if (/^[\d,.]+\s*[萬万千億kmb]$/i.test(text)) return; // 10萬、5k、5.5K、1.2M
+    // 排除日期格式（2026-1-6 或 2025-11-28）
+    if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(text)) return;
 
     // 排除 UI 文字（中英文）
     const uiTexts = [

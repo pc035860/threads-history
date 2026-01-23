@@ -483,6 +483,200 @@ describe("getPostContainer", () => {
     expect(authorLinks.length).toBe(1);
     expect(hasValidContent(result!)).toBe(true);
   });
+
+  test("avoids multi-post container in thread page", () => {
+    // 模擬串文頁面結構：
+    // - 大容器包含主貼文 + 多個回覆
+    // - 每個回覆都有自己的時間連結
+    document.body.innerHTML = `
+      <div id="thread-container">
+        <a role="link" href="/@author1">author1</a>
+        <span dir="auto">Main post content line 1</span>
+        <span dir="auto">Main post content line 2</span>
+        <a role="link" href="/post/POST1">1天</a>
+
+        <div id="reply1-container">
+          <a role="link" href="/@author2">author2</a>
+          <span dir="auto">Reply 1 content line 1</span>
+          <span dir="auto">Reply 1 content line 2</span>
+          <a id="reply1-link" role="link" href="/post/POST2">1天</a>
+        </div>
+
+        <div id="reply2-container">
+          <a role="link" href="/@author2">author2</a>
+          <span dir="auto">Reply 2 content line 1</span>
+          <span dir="auto">Reply 2 content line 2</span>
+          <a id="reply2-link" role="link" href="/post/POST3">1天</a>
+        </div>
+      </div>
+    `;
+
+    const reply1Link = asElement(document.getElementById("reply1-link"));
+    const reply2Link = asElement(document.getElementById("reply2-link"));
+
+    const result1 = getPostContainer(reply1Link);
+    const result2 = getPostContainer(reply2Link);
+
+    // 應該選擇各自的小容器，而非共同的大容器
+    expect(result1).not.toBeNull();
+    expect(result2).not.toBeNull();
+
+    // result1 應該只包含 POST2，不包含 POST1 和 POST3
+    const links1 = result1!.querySelectorAll('a[href*="/post/"]');
+    const post1Ids = Array.from(links1).map(
+      (link) => link.getAttribute("href")?.match(/\/post\/([^/?]+)/)?.[1]
+    );
+    expect(post1Ids).toContain("POST2");
+    expect(post1Ids).not.toContain("POST1");
+    expect(post1Ids).not.toContain("POST3");
+
+    // result2 應該只包含 POST3
+    const links2 = result2!.querySelectorAll('a[href*="/post/"]');
+    const post2Ids = Array.from(links2).map(
+      (link) => link.getAttribute("href")?.match(/\/post\/([^/?]+)/)?.[1]
+    );
+    expect(post2Ids).toContain("POST3");
+    expect(post2Ids).not.toContain("POST1");
+    expect(post2Ids).not.toContain("POST2");
+  });
+
+  test("prefers smaller container over larger multi-post container", () => {
+    // 模擬：小容器（3 spans）vs 大容器（47 spans，包含多個貼文）
+    const manySpans = Array(44).fill('<span dir="auto">More content</span>').join("");
+
+    document.body.innerHTML = `
+      <div id="large-container">
+        <a role="link" href="/@author1">author1</a>
+        <a role="link" href="/@author2">author2</a>
+        <span dir="auto">Content 1</span>
+        <span dir="auto">Content 2</span>
+        ${manySpans}
+        <a role="link" href="/post/POST1">1天</a>
+        <a role="link" href="/post/POST2">1天</a>
+
+        <div id="small-container">
+          <a role="link" href="/@author2">author2</a>
+          <span dir="auto">Reply content line 1</span>
+          <span dir="auto">Reply content line 2</span>
+          <span dir="auto">Reply content line 3</span>
+          <a id="reply-link" role="link" href="/post/POST2">1天</a>
+        </div>
+      </div>
+    `;
+
+    const replyLink = asElement(document.getElementById("reply-link"));
+    const result = getPostContainer(replyLink);
+
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("small-container");
+
+    // 驗證選擇的容器只包含 POST2
+    const links = result!.querySelectorAll('a[href*="/post/"]');
+    const postIds = Array.from(links).map(
+      (link) => link.getAttribute("href")?.match(/\/post\/([^/?]+)/)?.[1]
+    );
+    expect(postIds).toEqual(["POST2"]);
+  });
+
+  test("requires at least 1 author - skips containers with 0 authors", () => {
+    // 模擬 Custom Feed 頁面捲動後載入的文章
+    // 問題：Level 1-2 沒有作者，只有 Level 3+ 才有作者
+    document.body.innerHTML = `
+      <div id="level6-container">
+        <a role="link" href="/@author1">author1</a>
+        <span dir="auto">Real content line 1</span>
+        <span dir="auto">Real content line 2</span>
+        <span dir="auto">Real content line 3</span>
+        <span dir="auto">Real content line 4</span>
+        <div id="level3-container">
+          <a role="link" href="/@author1">author1</a>
+          <span dir="auto">author1</span>
+          <span dir="auto">2026-1-9</span>
+          <div id="level2-container">
+            <span dir="auto">AI IDE</span>
+            <span dir="auto">2025-9-23</span>
+            <div id="level1-container">
+              <span dir="auto">2025-9-23</span>
+              <a id="time-link" role="link" href="/post/ABC123">2025-9-23</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const timeLink = asElement(document.getElementById("time-link"));
+    const result = getPostContainer(timeLink);
+
+    expect(result).not.toBeNull();
+    // 應該選擇 level3 或更高（有作者的容器），而非 level1-2（沒有作者）
+    const authorLinks = result!.querySelectorAll('a[role="link"][href^="/@"]');
+    expect(authorLinks.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test("prefers ideal range container (4-20 spans) over small container (2-3 spans)", () => {
+    // 模擬串文頁面主貼文結構
+    // 問題：Level 3 只有作者+日期（2 spans），Level 6 有完整內容（12 spans）
+    document.body.innerHTML = `
+      <div id="level6-container">
+        <a role="link" href="/@author1">author1</a>
+        <span dir="auto">author1</span>
+        <span dir="auto">2026-1-9</span>
+        <span dir="auto">We just open sourced the code-simplifier agent</span>
+        <span dir="auto">Try it: claude plugin install code-simplifier</span>
+        <span dir="auto">Or from within a session</span>
+        <span dir="auto">Ask Claude to use the code simplifier agent</span>
+        <span dir="auto">1,280</span>
+        <span dir="auto">54</span>
+        <span dir="auto">124</span>
+        <span dir="auto">341</span>
+        <span dir="auto">熱門</span>
+        <div id="level3-container">
+          <a role="link" href="/@author1">author1</a>
+          <span dir="auto">author1</span>
+          <span dir="auto">2026-1-9</span>
+          <a id="time-link" role="link" href="/post/ABC123">2026-1-9</a>
+        </div>
+      </div>
+    `;
+
+    const timeLink = asElement(document.getElementById("time-link"));
+    const result = getPostContainer(timeLink);
+
+    expect(result).not.toBeNull();
+    // 應該選擇 level6（12 spans，在理想範圍 4-20），而非 level3（2 spans）
+    const contentSpans = result!.querySelectorAll('span[dir="auto"]');
+    expect(contentSpans.length).toBeGreaterThanOrEqual(4);
+    // 確認容器包含實際的貼文內容
+    const containerText = result!.textContent || "";
+    expect(containerText).toContain("code-simplifier");
+  });
+
+  test("handles container with only author and date (should go to larger container)", () => {
+    // 回覆貼文的結構：小容器只有作者+日期，需要往上找更大的容器
+    document.body.innerHTML = `
+      <div id="outer-container">
+        <a role="link" href="/@replier">replier</a>
+        <span dir="auto">replier</span>
+        <span dir="auto">2026-1-9</span>
+        <span dir="auto">This is my reply to the post</span>
+        <span dir="auto">Very interesting discussion!</span>
+        <div id="inner-container">
+          <a role="link" href="/@replier">replier</a>
+          <span dir="auto">replier</span>
+          <span dir="auto">2026-1-9</span>
+          <a id="time-link" role="link" href="/post/REPLY123">2026-1-9</a>
+        </div>
+      </div>
+    `;
+
+    const timeLink = asElement(document.getElementById("time-link"));
+    const result = getPostContainer(timeLink);
+
+    expect(result).not.toBeNull();
+    // 確認選擇了包含實際回覆內容的容器
+    const containerText = result!.textContent || "";
+    expect(containerText).toContain("This is my reply");
+  });
 });
 
 // =============================================================================
@@ -853,5 +1047,77 @@ describe("extractPostData", () => {
     `;
     const link = asElement(document.getElementById("link"));
     expect(extractPostData(link)).toBeNull();
+  });
+
+  test("excludes ISO date format from content (2026-1-9)", () => {
+    document.body.innerHTML = `
+      <div id="post-container">
+        <a role="link" href="/@testuser">@testuser</a>
+        <span dir="auto">2026-1-9</span>
+        <span dir="auto">This is the actual post content</span>
+        <a id="link" role="link" href="/t/@testuser/post/ABC123">2026-1-9</a>
+      </div>
+    `;
+    const link = asElement(document.getElementById("link"));
+    const result = extractPostData(link);
+
+    expect(result).not.toBeNull();
+    expect(result!.content).toBe("This is the actual post content");
+    expect(result!.content).not.toContain("2026-1-9");
+  });
+
+  test("excludes full ISO date format from content (2025-11-28)", () => {
+    document.body.innerHTML = `
+      <div id="post-container">
+        <a role="link" href="/@testuser">@testuser</a>
+        <span dir="auto">2025-11-28</span>
+        <span dir="auto">Post content goes here</span>
+        <a id="link" role="link" href="/t/@testuser/post/ABC123">2025-11-28</a>
+      </div>
+    `;
+    const link = asElement(document.getElementById("link"));
+    const result = extractPostData(link);
+
+    expect(result).not.toBeNull();
+    expect(result!.content).toBe("Post content goes here");
+    expect(result!.content).not.toContain("2025-11-28");
+  });
+
+  test("works with ISO date format time link (2026-1-9)", () => {
+    document.body.innerHTML = `
+      <div id="post-container">
+        <a role="link" href="/@testuser">@testuser</a>
+        <span dir="auto">Hello from the future!</span>
+        <a id="link" role="link" href="/t/@testuser/post/ABC123">2026-1-9</a>
+      </div>
+    `;
+    const link = asElement(document.getElementById("link"));
+    const result = extractPostData(link);
+
+    expect(result).not.toBeNull();
+    expect(result!.content).toBe("Hello from the future!");
+    expect(result!.id).toBe("ABC123");
+    expect(result!.author).toBe("testuser");
+  });
+
+  test("handles multiple date spans at beginning", () => {
+    document.body.innerHTML = `
+      <div id="post-container">
+        <a role="link" href="/@testuser">@testuser</a>
+        <span dir="auto">2026-1-9</span>
+        <span dir="auto">2025-12-31</span>
+        <span dir="auto">Real content starts here</span>
+        <span dir="auto">More content</span>
+        <a id="link" role="link" href="/t/@testuser/post/ABC123">2026-1-9</a>
+      </div>
+    `;
+    const link = asElement(document.getElementById("link"));
+    const result = extractPostData(link);
+
+    expect(result).not.toBeNull();
+    expect(result!.content).not.toContain("2026-1-9");
+    expect(result!.content).not.toContain("2025-12-31");
+    expect(result!.content).toContain("Real content starts here");
+    expect(result!.content).toContain("More content");
   });
 });

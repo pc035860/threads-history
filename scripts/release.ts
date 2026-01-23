@@ -7,8 +7,8 @@
  *
  * Features:
  * - Auto-bump version in package.json and manifest.json
- * - Generate release note from git commits
  * - Create git commit and tag
+ * - Build and pack extension to packing/
  * - Support --dry-run for preview
  */
 
@@ -24,20 +24,6 @@ type ReleaseType = "patch" | "minor" | "major";
 interface ReleaseOptions {
   type: ReleaseType;
   dryRun: boolean;
-}
-
-interface CommitInfo {
-  hash: string;
-  message: string;
-  type: string;
-  scope?: string;
-}
-
-interface CommitCategory {
-  features: string[];
-  fixes: string[];
-  changes: string[];
-  docs: string[];
 }
 
 // =====================
@@ -61,29 +47,6 @@ async function execCommand(
   const exitCode = await proc.exited;
 
   return { stdout, stderr, exitCode };
-}
-
-/**
- * 解析 Conventional Commit 格式
- * 格式: type(scope): description
- */
-function parseCommitMessage(message: string): CommitInfo | null {
-  // 移除合併 commit 的前綴
-  const cleanMessage = message.replace(
-    /^Merge (branch|remote-tracking branch|pull request) ['"]/i,
-    ""
-  );
-  const conventionalRegex = /^(\w+)(?:\(([^)]+)\))?:?\s+(.+)$/;
-  const match = cleanMessage.match(conventionalRegex);
-
-  if (!match) return null;
-
-  return {
-    hash: "",
-    message: match[3] ?? "",
-    type: match[1] ?? "",
-    scope: match[2],
-  };
 }
 
 // =====================
@@ -147,103 +110,6 @@ async function updateVersionFiles(newVersion: string, dryRun: boolean): Promise<
 async function isWorkingDirectoryClean(): Promise<boolean> {
   const { stdout } = await execCommand(["git", "status", "--porcelain"], { silent: true });
   return stdout.trim() === "";
-}
-
-/**
- * 取得最近的 tag
- */
-async function getLastTag(): Promise<string> {
-  const { stdout } = await execCommand(["git", "describe", "--tags", "--abbrev=0"], {
-    silent: true,
-  });
-  return stdout.trim() || "";
-}
-
-/**
- * 取得自指定 tag 以來的 commits
- */
-async function getCommitsSinceTag(tag: string): Promise<CommitInfo[]> {
-  const range = tag ? `${tag}..HEAD` : "HEAD";
-  const { stdout } = await execCommand(["git", "log", "--pretty=format:%H %s", range], {
-    silent: true,
-  });
-
-  const lines = stdout.split("\n").filter(Boolean);
-
-  return lines
-    .map((line) => {
-      const parts = line.split(" ");
-      const hash = parts[0];
-      const message = parts.slice(1).join(" ");
-      const parsed = parseCommitMessage(message);
-      return parsed ? { ...parsed, hash } : null;
-    })
-    .filter((c): c is CommitInfo => c !== null);
-}
-
-/**
- * 分類 commits
- */
-function categorizeCommits(commits: CommitInfo[]): CommitCategory {
-  const categories: CommitCategory = {
-    features: [],
-    fixes: [],
-    changes: [],
-    docs: [],
-  };
-
-  for (const commit of commits) {
-    const item = commit.scope ? `- **${commit.scope}**: ${commit.message}` : `- ${commit.message}`;
-
-    switch (commit.type) {
-      case "feat":
-        categories.features.push(item);
-        break;
-      case "fix":
-        categories.fixes.push(item);
-        break;
-      case "refactor":
-      case "perf":
-      case "chore":
-        categories.changes.push(item);
-        break;
-      case "docs":
-        categories.docs.push(item);
-        break;
-      // 忽略 test, style, ci 等
-    }
-  }
-
-  return categories;
-}
-
-/**
- * 產生 Release Note markdown
- */
-function generateReleaseNote(version: string, categories: CommitCategory): string {
-  const date = new Date().toLocaleDateString("zh-TW", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-
-  let md = `# Release ${version}\n\n`;
-  md += `**發布日期**: ${date}\n\n`;
-
-  if (categories.features.length > 0) {
-    md += `## 新功能\n\n${categories.features.join("\n")}\n\n`;
-  }
-
-  if (categories.fixes.length > 0) {
-    md += `## 錯誤修復\n\n${categories.fixes.join("\n")}\n\n`;
-  }
-
-  // 如果沒有內容，加入預設說明
-  if (categories.features.length === 0 && categories.fixes.length === 0) {
-    md += `## 變更說明\n\n請參考 git log 取得完整變更記錄。\n\n`;
-  }
-
-  return md;
 }
 
 /**
@@ -385,45 +251,22 @@ async function main() {
   await updateVersionFiles(newVersion, dryRun);
   console.log("─".repeat(40) + "\n");
 
-  // 5. 產生 release note
-  const lastTag = await getLastTag();
-  console.log(`Fetching commits since ${lastTag || "beginning"}...`);
-  const commits = await getCommitsSinceTag(lastTag);
-  console.log(`Found ${commits.length} commits\n`);
-
-  const categories = categorizeCommits(commits);
-  const releaseNote = generateReleaseNote(newVersion, categories);
-  const releaseNotePath = `RELEASE_NOTE_v${newVersion}.md`;
-
-  console.log("─".repeat(40));
-  console.log(`Release Note (${releaseNotePath}):`);
-  console.log("─".repeat(40));
-  console.log(releaseNote);
-  console.log("─".repeat(40) + "\n");
-
-  if (dryRun) {
-    console.log(`[DRY RUN] Would create ${releaseNotePath}\n`);
-  } else {
-    await Bun.write(releaseNotePath, releaseNote);
-    console.log(`✓ Created ${releaseNotePath}\n`);
-  }
-
-  // 6. Git commit
+  // 5. Git commit
   console.log("─".repeat(40));
   await createGitCommit(newVersion, dryRun);
   console.log("─".repeat(40) + "\n");
 
-  // 7. Git tag
+  // 6. Git tag
   console.log("─".repeat(40));
   await createGitTag(newVersion, dryRun);
   console.log("─".repeat(40) + "\n");
 
-  // 8. 打包擴展
+  // 7. 打包擴展
   console.log("─".repeat(40));
   await packExtension(newVersion, dryRun);
   console.log("─".repeat(40) + "\n");
 
-  // 9. 後續步驟提示
+  // 8. 後續步驟提示
   if (!dryRun) {
     console.log(`\n✨ Release ${newVersion} created successfully!\n`);
     console.log("Next steps:");

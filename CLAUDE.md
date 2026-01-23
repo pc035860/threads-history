@@ -149,11 +149,10 @@ React 19 + Tailwind CSS 4 + @tanstack/react-virtual（虛擬滾動）
 ### Scripts (`scripts/`)
 - **release.ts**: Semantic Versioning Release 自動化腳本
   - 自動更新版本號（package.json + manifest.json）
-  - 從 git commits 生成 Release Note（只包含新功能、錯誤修復）
   - 建立 git commit 和 tag
   - 執行 build 並打包到 `packing/chrome-vX.X.X.zip`
   - 支援 `--dry-run` 預覽模式
-  - 位置：`scripts/release.ts:1-390`
+  - 位置：`scripts/release.ts:1-xxx`
 
 ### i18n (`public/_locales/`)
 - 支援 `en`（英文）和 `zh_TW`（繁體中文）
@@ -186,7 +185,6 @@ React 19 + Tailwind CSS 4 + @tanstack/react-virtual（虛擬滾動）
 
 3. **自動執行的步驟**：
    - 更新 `package.json` 和 `public/manifest.json` 版本號
-   - 解析 Conventional Commits 生成 `RELEASE_NOTE_vX.X.X.md`
    - 建立 git commit: `chore(release): bump version to X.X.X`
    - 建立 git tag: `vX.X.X`
    - 執行 build 並打包到 `packing/chrome-vX.X.X.zip`

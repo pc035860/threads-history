@@ -142,9 +142,8 @@ bun run release:dry     # 預覽發布變更
 執行 `bun run release:patch` 會自動完成以下步驟：
 
 1. 更新版本號（`package.json` + `public/manifest.json`）
-2. 從 git commits 生成 `RELEASE_NOTE_vX.X.X.md`
-3. 建立 git commit 和 tag
-4. 執行 build 並打包到 `packing/chrome-vX.X.X.zip`
+2. 建立 git commit 和 tag
+3. 執行 build 並打包到 `packing/chrome-vX.X.X.zip`
 
 接著只需推送到遠端並上傳 zip 檔到 Chrome Web Store。
 

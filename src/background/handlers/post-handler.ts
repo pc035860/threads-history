@@ -45,11 +45,9 @@ export async function enforceMaxPosts(
   const allPosts = await getAllPosts(db);
   const overflowPostIds = getOverflowPostIds(allPosts, maxPosts);
 
-  for (const postId of overflowPostIds) {
-    await db.delete("posts", postId);
-  }
+  await Promise.all(overflowPostIds.map((postId) => db.delete("posts", postId)));
 
-  const totalCount = await getPostCount(db);
+  const totalCount = allPosts.length - overflowPostIds.length;
   await db.put(
     "metadata",
     {

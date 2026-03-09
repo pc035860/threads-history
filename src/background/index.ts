@@ -26,10 +26,12 @@ import {
   handleSearch,
   handleClear,
   handleGetCount,
+  enforceMaxPosts,
 } from "./handlers/post-handler.ts";
 import { isMigrationNeeded, migrateFromStorage } from "./db/migrations.ts";
 import { DEFAULT_MAX_POSTS, SETTINGS_KEY } from "../shared/constants.ts";
 import { ValidationError } from "./handlers/validator.ts";
+import { normalizeSettings } from "../storage/settings.ts";
 
 /**
  * Global database instance
@@ -62,11 +64,22 @@ async function getDatabase() {
  */
 async function loadSettings() {
   const result = await chrome.storage.local.get(SETTINGS_KEY);
-  const settings = result[SETTINGS_KEY] as { maxPosts?: number } | undefined;
-  if (settings?.maxPosts && typeof settings.maxPosts === "number" && settings.maxPosts > 0) {
-    cachedMaxPosts = settings.maxPosts;
+  const settings = normalizeSettings(result[SETTINGS_KEY] as { maxPosts?: number } | undefined);
+  cachedMaxPosts = settings.maxPosts;
+  // eslint-disable-next-line no-console
+  console.log("[Background] Settings loaded, maxPosts:", cachedMaxPosts);
+}
+
+async function reconcileMaxPosts() {
+  const db = await getDatabase();
+  const { deletedCount, totalCount } = await enforceMaxPosts(db, cachedMaxPosts);
+
+  if (deletedCount > 0) {
     // eslint-disable-next-line no-console
-    console.log("[Background] Settings loaded, maxPosts:", cachedMaxPosts);
+    console.log(
+      `[Background] Pruned ${deletedCount} posts to match maxPosts=${cachedMaxPosts} (${totalCount} total)`
+    );
+    notifyPopups();
   }
 }
 
@@ -192,16 +205,15 @@ loadSettings().catch((err) => {
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "local") return;
   if (changes[SETTINGS_KEY]) {
-    const newSettings = changes[SETTINGS_KEY].newValue as { maxPosts?: number } | undefined;
-    if (
-      newSettings?.maxPosts &&
-      typeof newSettings.maxPosts === "number" &&
-      newSettings.maxPosts > 0
-    ) {
-      cachedMaxPosts = newSettings.maxPosts;
-      // eslint-disable-next-line no-console
-      console.log("[Background] Settings updated, maxPosts:", cachedMaxPosts);
-    }
+    const newSettings = normalizeSettings(
+      changes[SETTINGS_KEY].newValue as { maxPosts?: number } | undefined
+    );
+    cachedMaxPosts = newSettings.maxPosts;
+    // eslint-disable-next-line no-console
+    console.log("[Background] Settings updated, maxPosts:", cachedMaxPosts);
+    reconcileMaxPosts().catch((err) => {
+      console.error("[Background] Failed to reconcile maxPosts:", err);
+    });
   }
 });
 
@@ -255,6 +267,8 @@ self.addEventListener("activate", (event) => {
         if (result.status === "COMPLETED") {
           // eslint-disable-next-line no-console
           console.log(`[Background] Migration completed: ${result.migratedCount} posts migrated`);
+          await loadSettings();
+          await reconcileMaxPosts();
           // Notify all popups that migration is complete
           notifyPopups();
         } else {
@@ -265,6 +279,8 @@ self.addEventListener("activate", (event) => {
       } else {
         // eslint-disable-next-line no-console
         console.log("[Background] No migration needed");
+        await loadSettings();
+        await reconcileMaxPosts();
       }
     })()
   );

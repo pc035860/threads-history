@@ -7,14 +7,7 @@ import type { ThreadPost } from "../../storage/types.ts";
 import { DEFAULT_MAX_POSTS } from "../../shared/constants.ts";
 import type { IDBPDatabase } from "idb";
 import type { ThreadsLoggerDB } from "../db/schema.ts";
-import {
-  getAllPosts,
-  getPost,
-  upsertPost,
-  searchPosts,
-  clearPosts,
-  getPostCount,
-} from "../db/index.ts";
+import { getAllPosts, upsertPost, searchPosts, clearPosts, getPostCount } from "../db/index.ts";
 import { METADATA_KEY } from "../db/schema.ts";
 import { validateThreadPost, validateSearchKeywords } from "./validator.ts";
 
@@ -27,45 +20,50 @@ export async function handleUpsert(
   payload: ThreadPost,
   maxPosts: number = DEFAULT_MAX_POSTS
 ): Promise<void> {
-  // Validate payload
   const post = validateThreadPost(payload);
+  await upsertPost(db, post);
+  const { deletedCount, totalCount } = await enforceMaxPosts(db, maxPosts);
 
-  // Check if post already exists
-  const existing = await getPost(db, post.id);
+  // eslint-disable-next-line no-console
+  console.log(
+    `[Handler] Upserted post ${post.id} (${totalCount} total, pruned ${deletedCount} overflow)`
+  );
+}
 
-  // If it's a new post and we're at capacity, remove oldest post
-  if (!existing) {
-    const count = await getPostCount(db);
-    if (count >= maxPosts) {
-      // Get all posts sorted by seenAt (oldest last)
-      const allPosts = await getAllPosts(db);
-      const oldestPost = allPosts[allPosts.length - 1];
-      if (oldestPost) {
-        // Delete the oldest post (using idb delete)
-        await db.delete("posts", oldestPost.id);
-        // eslint-disable-next-line no-console
-        console.log(`[Handler] Removed oldest post ${oldestPost.id} to make room`);
-      }
-    }
+export function getOverflowPostIds(posts: ThreadPost[], maxPosts: number): string[] {
+  if (posts.length <= maxPosts) {
+    return [];
   }
 
-  // Upsert the post (updates seenAt if exists)
-  await upsertPost(db, post);
+  return posts.slice(maxPosts).map((post) => post.id);
+}
 
-  // Update metadata
-  const newCount = await getPostCount(db);
+export async function enforceMaxPosts(
+  db: IDBPDatabase<ThreadsLoggerDB>,
+  maxPosts: number = DEFAULT_MAX_POSTS
+): Promise<{ deletedCount: number; totalCount: number }> {
+  const allPosts = await getAllPosts(db);
+  const overflowPostIds = getOverflowPostIds(allPosts, maxPosts);
+
+  for (const postId of overflowPostIds) {
+    await db.delete("posts", postId);
+  }
+
+  const totalCount = await getPostCount(db);
   await db.put(
     "metadata",
     {
       version: 1,
-      totalCount: newCount,
+      totalCount,
       lastMigration: Date.now(),
     },
     METADATA_KEY
   );
 
-  // eslint-disable-next-line no-console
-  console.log(`[Handler] Upserted post ${post.id} (${newCount} total)`);
+  return {
+    deletedCount: overflowPostIds.length,
+    totalCount,
+  };
 }
 
 /**

@@ -17,4 +17,6 @@ export const POST_CONTAINER_DEPTH = 11;
 export const STORAGE_KEY = "threads_posts";
 export const SETTINGS_KEY = "threads_settings";
 
+export const MIN_MAX_POSTS = 100;
+export const MAX_MAX_POSTS = 10000;
 export const DEFAULT_MAX_POSTS = 1000;

@@ -22,8 +22,8 @@ export function useSettings() {
 
   const updateSettings = useCallback(async (newSettings: Settings) => {
     setSaving(true);
-    await saveSettings(newSettings);
-    setSettings(newSettings);
+    const savedSettings = await saveSettings(newSettings);
+    setSettings(savedSettings);
     setSaving(false);
   }, []);
 
